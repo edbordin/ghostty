@@ -161,7 +161,8 @@ pub fn main() !void {
         \\
     );
 
-    try stdout.end();
+    // See helpgen.zig: stdout is a pipe when zig runs this tool.
+    try stdout.interface.flush();
 }
 
 /// Generate the icon resources. This works by looking up all the icons
@@ -236,6 +237,20 @@ fn genRoot(writer: *std.Io.Writer) !void {
     );
 }
 
+/// True if `path` ends with `suffix`, treating `\` and `/` as equivalent (Windows argv uses `\`).
+fn pathEndsWithIgnoreSep(path: []const u8, suffix: []const u8) bool {
+    if (path.len < suffix.len) return false;
+    var i: usize = 0;
+    while (i < suffix.len) : (i += 1) {
+        const pc = path[path.len - suffix.len + i];
+        const sc = suffix[i];
+        const pn = if (pc == '\\') '/' else pc;
+        const sn = if (sc == '\\') '/' else sc;
+        if (pn != sn) return false;
+    }
+    return true;
+}
+
 /// Generate all the UI resources. This works by looking up all the
 /// blueprint files in `${ui_path}/{major}.{minor}/{name}.blp` and
 /// assuming these will be
@@ -257,7 +272,7 @@ fn genUi(
                 .{ bp.major, bp.minor, bp.name },
             );
             defer alloc.free(expected);
-            if (!std.mem.endsWith(u8, ui_file, expected)) continue;
+            if (!pathEndsWithIgnoreSep(ui_file, expected)) continue;
             try writer.print(
                 "    <file compressed=\"true\" preprocess=\"xml-stripblanks\" alias=\"{d}.{d}/{s}.ui\">{s}</file>\n",
                 .{ bp.major, bp.minor, bp.name, ui_file },
