@@ -1,8 +1,8 @@
 //! Block Elements | U+2580...U+259F
 //! https://en.wikipedia.org/wiki/Block_Elements
 //!
-//! ▀▁▂▃▄▅▆▇█▉▊▋▌▍▎▏
-//! ▐░▒▓▔▕▖▗▘▙▚▛▜▝▞▟
+//! â–€â–â–‚â–ƒâ–„â–…â–†â–‡â–ˆâ–‰â–Šâ–‹â–Œâ–â–Žâ–
+//! â–â–‘â–’â–“â–”â–•â––â–—â–˜â–™â–šâ–›â–œâ–â–žâ–Ÿ
 //!
 
 const std = @import("std");
@@ -38,70 +38,70 @@ pub fn draw2580_259F(
     _ = height;
 
     switch (cp) {
-        // '▀' UPPER HALF BLOCK
+        // 'â–€' UPPER HALF BLOCK
         0x2580 => block(metrics, canvas, .upper, 1, half),
-        // '▁' LOWER ONE EIGHTH BLOCK
+        // 'â–' LOWER ONE EIGHTH BLOCK
         0x2581 => block(metrics, canvas, .lower, 1, one_eighth),
-        // '▂' LOWER ONE QUARTER BLOCK
+        // 'â–‚' LOWER ONE QUARTER BLOCK
         0x2582 => block(metrics, canvas, .lower, 1, one_quarter),
-        // '▃' LOWER THREE EIGHTHS BLOCK
+        // 'â–ƒ' LOWER THREE EIGHTHS BLOCK
         0x2583 => block(metrics, canvas, .lower, 1, three_eighths),
-        // '▄' LOWER HALF BLOCK
+        // 'â–„' LOWER HALF BLOCK
         0x2584 => block(metrics, canvas, .lower, 1, half),
-        // '▅' LOWER FIVE EIGHTHS BLOCK
+        // 'â–…' LOWER FIVE EIGHTHS BLOCK
         0x2585 => block(metrics, canvas, .lower, 1, five_eighths),
-        // '▆' LOWER THREE QUARTERS BLOCK
+        // 'â–†' LOWER THREE QUARTERS BLOCK
         0x2586 => block(metrics, canvas, .lower, 1, three_quarters),
-        // '▇' LOWER SEVEN EIGHTHS BLOCK
+        // 'â–‡' LOWER SEVEN EIGHTHS BLOCK
         0x2587 => block(metrics, canvas, .lower, 1, seven_eighths),
-        // '█' FULL BLOCK
+        // 'â–ˆ' FULL BLOCK
         0x2588 => fullBlockShade(metrics, canvas, .on),
-        // '▉' LEFT SEVEN EIGHTHS BLOCK
+        // 'â–‰' LEFT SEVEN EIGHTHS BLOCK
         0x2589 => block(metrics, canvas, .left, seven_eighths, 1),
-        // '▊' LEFT THREE QUARTERS BLOCK
+        // 'â–Š' LEFT THREE QUARTERS BLOCK
         0x258a => block(metrics, canvas, .left, three_quarters, 1),
-        // '▋' LEFT FIVE EIGHTHS BLOCK
+        // 'â–‹' LEFT FIVE EIGHTHS BLOCK
         0x258b => block(metrics, canvas, .left, five_eighths, 1),
-        // '▌' LEFT HALF BLOCK
+        // 'â–Œ' LEFT HALF BLOCK
         0x258c => block(metrics, canvas, .left, half, 1),
-        // '▍' LEFT THREE EIGHTHS BLOCK
+        // 'â–' LEFT THREE EIGHTHS BLOCK
         0x258d => block(metrics, canvas, .left, three_eighths, 1),
-        // '▎' LEFT ONE QUARTER BLOCK
+        // 'â–Ž' LEFT ONE QUARTER BLOCK
         0x258e => block(metrics, canvas, .left, one_quarter, 1),
-        // '▏' LEFT ONE EIGHTH BLOCK
+        // 'â–' LEFT ONE EIGHTH BLOCK
         0x258f => block(metrics, canvas, .left, one_eighth, 1),
 
-        // '▐' RIGHT HALF BLOCK
+        // 'â–' RIGHT HALF BLOCK
         0x2590 => block(metrics, canvas, .right, half, 1),
-        // '░'
+        // 'â–‘'
         0x2591 => fullBlockShade(metrics, canvas, .light),
-        // '▒'
+        // 'â–’'
         0x2592 => fullBlockShade(metrics, canvas, .medium),
-        // '▓'
+        // 'â–“'
         0x2593 => fullBlockShade(metrics, canvas, .dark),
-        // '▔' UPPER ONE EIGHTH BLOCK
+        // 'â–”' UPPER ONE EIGHTH BLOCK
         0x2594 => block(metrics, canvas, .upper, 1, one_eighth),
-        // '▕' RIGHT ONE EIGHTH BLOCK
+        // 'â–•' RIGHT ONE EIGHTH BLOCK
         0x2595 => block(metrics, canvas, .right, one_eighth, 1),
-        // '▖'
+        // 'â––'
         0x2596 => quadrant(metrics, canvas, .{ .bl = true }),
-        // '▗'
+        // 'â–—'
         0x2597 => quadrant(metrics, canvas, .{ .br = true }),
-        // '▘'
+        // 'â–˜'
         0x2598 => quadrant(metrics, canvas, .{ .tl = true }),
-        // '▙'
+        // 'â–™'
         0x2599 => quadrant(metrics, canvas, .{ .tl = true, .bl = true, .br = true }),
-        // '▚'
+        // 'â–š'
         0x259a => quadrant(metrics, canvas, .{ .tl = true, .br = true }),
-        // '▛'
+        // 'â–›'
         0x259b => quadrant(metrics, canvas, .{ .tl = true, .tr = true, .bl = true }),
-        // '▜'
+        // 'â–œ'
         0x259c => quadrant(metrics, canvas, .{ .tl = true, .tr = true, .br = true }),
-        // '▝'
+        // 'â–'
         0x259d => quadrant(metrics, canvas, .{ .tr = true }),
-        // '▞'
+        // 'â–ž'
         0x259e => quadrant(metrics, canvas, .{ .tr = true, .bl = true }),
-        // '▟'
+        // 'â–Ÿ'
         0x259f => quadrant(metrics, canvas, .{ .tr = true, .bl = true, .br = true }),
 
         else => unreachable,

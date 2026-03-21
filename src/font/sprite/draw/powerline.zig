@@ -1,9 +1,9 @@
 //! Powerline + Powerline Extra Symbols | U+E0B0...U+E0D4
 //! https://github.com/ryanoasis/powerline-extra-symbols
 //!
-//!                
-//!                  
-//!      
+//! î‚° î‚± î‚² î‚³ î‚´ î‚µ î‚¶ î‚· î‚¸ î‚¹ î‚º î‚» î‚¼ î‚½ î‚¾ î‚¿
+//! îƒ€ îƒ îƒ‚ îƒƒ îƒ„ îƒ… îƒ† îƒ‡ îƒˆ   îƒŠ   îƒŒ îƒ îƒŽ îƒ
+//! îƒ îƒ‘ îƒ’   îƒ”
 //!
 //! We implement the more geometric glyphs here, but not the stylized ones.
 //!
@@ -20,7 +20,7 @@ const box = @import("box.zig");
 const font = @import("../../main.zig");
 const Quad = font.sprite.Canvas.Quad;
 
-/// 
+/// î‚°
 pub fn drawE0B0(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -39,7 +39,7 @@ pub fn drawE0B0(
     }, .on);
 }
 
-/// 
+/// î‚²
 pub fn drawE0B2(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -58,7 +58,7 @@ pub fn drawE0B2(
     }, .on);
 }
 
-/// 
+/// î‚¸
 pub fn drawE0B8(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -77,7 +77,7 @@ pub fn drawE0B8(
     }, .on);
 }
 
-/// 
+/// î‚¹
 pub fn drawE0B9(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -91,7 +91,7 @@ pub fn drawE0B9(
     box.lightDiagonalUpperLeftToLowerRight(metrics, canvas);
 }
 
-/// 
+/// î‚º
 pub fn drawE0BA(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -110,7 +110,7 @@ pub fn drawE0BA(
     }, .on);
 }
 
-/// 
+/// î‚»
 pub fn drawE0BB(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -124,7 +124,7 @@ pub fn drawE0BB(
     box.lightDiagonalUpperRightToLowerLeft(metrics, canvas);
 }
 
-/// 
+/// î‚¼
 pub fn drawE0BC(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -143,7 +143,7 @@ pub fn drawE0BC(
     }, .on);
 }
 
-/// 
+/// î‚½
 pub fn drawE0BD(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -157,7 +157,7 @@ pub fn drawE0BD(
     box.lightDiagonalUpperRightToLowerLeft(metrics, canvas);
 }
 
-/// 
+/// î‚¾
 pub fn drawE0BE(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -176,7 +176,7 @@ pub fn drawE0BE(
     }, .on);
 }
 
-/// 
+/// î‚¿
 pub fn drawE0BF(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -190,7 +190,7 @@ pub fn drawE0BF(
     box.lightDiagonalUpperLeftToLowerRight(metrics, canvas);
 }
 
-/// 
+/// î‚±
 pub fn drawE0B1(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -219,7 +219,7 @@ pub fn drawE0B1(
     );
 }
 
-/// 
+/// î‚³
 pub fn drawE0B3(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -231,7 +231,7 @@ pub fn drawE0B3(
     try canvas.flipHorizontal();
 }
 
-/// 
+/// î‚´
 pub fn drawE0B4(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -274,7 +274,7 @@ pub fn drawE0B4(
     try canvas.fillPath(path.wrapped_path, .{}, .on);
 }
 
-/// 
+/// î‚µ
 pub fn drawE0B5(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -318,7 +318,7 @@ pub fn drawE0B5(
     }, .on);
 }
 
-/// 
+/// î‚¶
 pub fn drawE0B6(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -330,7 +330,7 @@ pub fn drawE0B6(
     try canvas.flipHorizontal();
 }
 
-/// 
+/// î‚·
 pub fn drawE0B7(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -342,7 +342,7 @@ pub fn drawE0B7(
     try canvas.flipHorizontal();
 }
 
-/// 
+/// îƒ’
 pub fn drawE0D2(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -381,7 +381,7 @@ pub fn drawE0D2(
     }
 }
 
-/// 
+/// îƒ”
 pub fn drawE0D4(
     cp: u32,
     canvas: *font.sprite.Canvas,

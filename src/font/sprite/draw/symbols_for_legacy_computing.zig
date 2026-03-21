@@ -1,22 +1,22 @@
 //! Symbols for Legacy Computing | U+1FB00...U+1FBFF
 //! https://en.wikipedia.org/wiki/Symbols_for_Legacy_Computing
 //!
-//! 🬀 🬁 🬂 🬃 🬄 🬅 🬆 🬇 🬈 🬉 🬊 🬋 🬌 🬍 🬎 🬏
-//! 🬐 🬑 🬒 🬓 🬔 🬕 🬖 🬗 🬘 🬙 🬚 🬛 🬜 🬝 🬞 🬟
-//! 🬠 🬡 🬢 🬣 🬤 🬥 🬦 🬧 🬨 🬩 🬪 🬫 🬬 🬭 🬮 🬯
-//! 🬰 🬱 🬲 🬳 🬴 🬵 🬶 🬷 🬸 🬹 🬺 🬻 🬼 🬽 🬾 🬿
-//! 🭀 🭁 🭂 🭃 🭄 🭅 🭆 🭇 🭈 🭉 🭊 🭋 🭌 🭍 🭎 🭏
-//! 🭐 🭑 🭒 🭓 🭔 🭕 🭖 🭗 🭘 🭙 🭚 🭛 🭜 🭝 🭞 🭟
-//! 🭠 🭡 🭢 🭣 🭤 🭥 🭦 🭧 🭨 🭩 🭪 🭫 🭬 🭭 🭮 🭯
-//! 🭰 🭱 🭲 🭳 🭴 🭵 🭶 🭷 🭸 🭹 🭺 🭻 🭼 🭽 🭾 🭿
-//! 🮀 🮁 🮂 🮃 🮄 🮅 🮆 🮇 🮈 🮉 🮊 🮋 🮌 🮍 🮎 🮏
-//! 🮐 🮑 🮒   🮔 🮕 🮖 🮗 🮘 🮙 🮚 🮛 🮜 🮝 🮞 🮟
-//! 🮠 🮡 🮢 🮣 🮤 🮥 🮦 🮧 🮨 🮩 🮪 🮫 🮬 🮭 🮮 🮯
-//! 🮰 🮱 🮲 🮳 🮴 🮵 🮶 🮷 🮸 🮹 🮺 🮻 🮼 🮽 🮾 🮿
-//! 🯀 🯁 🯂 🯃 🯄 🯅 🯆 🯇 🯈 🯉 🯊 🯋 🯌 🯍 🯎 🯏
-//! 🯐 🯑 🯒 🯓 🯔 🯕 🯖 🯗 🯘 🯙 🯚 🯛 🯜 🯝 🯞 🯟
-//! 🯠 🯡 🯢 🯣 🯤 🯥 🯦 🯧 🯨 🯩 🯪 🯫 🯬 🯭 🯮 🯯
-//! 🯰 🯱 🯲 🯳 🯴 🯵 🯶 🯷 🯸 🯹
+//! ðŸ¬€ ðŸ¬ ðŸ¬‚ ðŸ¬ƒ ðŸ¬„ ðŸ¬… ðŸ¬† ðŸ¬‡ ðŸ¬ˆ ðŸ¬‰ ðŸ¬Š ðŸ¬‹ ðŸ¬Œ ðŸ¬ ðŸ¬Ž ðŸ¬
+//! ðŸ¬ ðŸ¬‘ ðŸ¬’ ðŸ¬“ ðŸ¬” ðŸ¬• ðŸ¬– ðŸ¬— ðŸ¬˜ ðŸ¬™ ðŸ¬š ðŸ¬› ðŸ¬œ ðŸ¬ ðŸ¬ž ðŸ¬Ÿ
+//! ðŸ¬  ðŸ¬¡ ðŸ¬¢ ðŸ¬£ ðŸ¬¤ ðŸ¬¥ ðŸ¬¦ ðŸ¬§ ðŸ¬¨ ðŸ¬© ðŸ¬ª ðŸ¬« ðŸ¬¬ ðŸ¬­ ðŸ¬® ðŸ¬¯
+//! ðŸ¬° ðŸ¬± ðŸ¬² ðŸ¬³ ðŸ¬´ ðŸ¬µ ðŸ¬¶ ðŸ¬· ðŸ¬¸ ðŸ¬¹ ðŸ¬º ðŸ¬» ðŸ¬¼ ðŸ¬½ ðŸ¬¾ ðŸ¬¿
+//! ðŸ­€ ðŸ­ ðŸ­‚ ðŸ­ƒ ðŸ­„ ðŸ­… ðŸ­† ðŸ­‡ ðŸ­ˆ ðŸ­‰ ðŸ­Š ðŸ­‹ ðŸ­Œ ðŸ­ ðŸ­Ž ðŸ­
+//! ðŸ­ ðŸ­‘ ðŸ­’ ðŸ­“ ðŸ­” ðŸ­• ðŸ­– ðŸ­— ðŸ­˜ ðŸ­™ ðŸ­š ðŸ­› ðŸ­œ ðŸ­ ðŸ­ž ðŸ­Ÿ
+//! ðŸ­  ðŸ­¡ ðŸ­¢ ðŸ­£ ðŸ­¤ ðŸ­¥ ðŸ­¦ ðŸ­§ ðŸ­¨ ðŸ­© ðŸ­ª ðŸ­« ðŸ­¬ ðŸ­­ ðŸ­® ðŸ­¯
+//! ðŸ­° ðŸ­± ðŸ­² ðŸ­³ ðŸ­´ ðŸ­µ ðŸ­¶ ðŸ­· ðŸ­¸ ðŸ­¹ ðŸ­º ðŸ­» ðŸ­¼ ðŸ­½ ðŸ­¾ ðŸ­¿
+//! ðŸ®€ ðŸ® ðŸ®‚ ðŸ®ƒ ðŸ®„ ðŸ®… ðŸ®† ðŸ®‡ ðŸ®ˆ ðŸ®‰ ðŸ®Š ðŸ®‹ ðŸ®Œ ðŸ® ðŸ®Ž ðŸ®
+//! ðŸ® ðŸ®‘ ðŸ®’   ðŸ®” ðŸ®• ðŸ®– ðŸ®— ðŸ®˜ ðŸ®™ ðŸ®š ðŸ®› ðŸ®œ ðŸ® ðŸ®ž ðŸ®Ÿ
+//! ðŸ®  ðŸ®¡ ðŸ®¢ ðŸ®£ ðŸ®¤ ðŸ®¥ ðŸ®¦ ðŸ®§ ðŸ®¨ ðŸ®© ðŸ®ª ðŸ®« ðŸ®¬ ðŸ®­ ðŸ®® ðŸ®¯
+//! ðŸ®° ðŸ®± ðŸ®² ðŸ®³ ðŸ®´ ðŸ®µ ðŸ®¶ ðŸ®· ðŸ®¸ ðŸ®¹ ðŸ®º ðŸ®» ðŸ®¼ ðŸ®½ ðŸ®¾ ðŸ®¿
+//! ðŸ¯€ ðŸ¯ ðŸ¯‚ ðŸ¯ƒ ðŸ¯„ ðŸ¯… ðŸ¯† ðŸ¯‡ ðŸ¯ˆ ðŸ¯‰ ðŸ¯Š ðŸ¯‹ ðŸ¯Œ ðŸ¯ ðŸ¯Ž ðŸ¯
+//! ðŸ¯ ðŸ¯‘ ðŸ¯’ ðŸ¯“ ðŸ¯” ðŸ¯• ðŸ¯– ðŸ¯— ðŸ¯˜ ðŸ¯™ ðŸ¯š ðŸ¯› ðŸ¯œ ðŸ¯ ðŸ¯ž ðŸ¯Ÿ
+//! ðŸ¯  ðŸ¯¡ ðŸ¯¢ ðŸ¯£ ðŸ¯¤ ðŸ¯¥ ðŸ¯¦ ðŸ¯§ ðŸ¯¨ ðŸ¯© ðŸ¯ª ðŸ¯« ðŸ¯¬ ðŸ¯­ ðŸ¯® ðŸ¯¯
+//! ðŸ¯° ðŸ¯± ðŸ¯² ðŸ¯³ ðŸ¯´ ðŸ¯µ ðŸ¯¶ ðŸ¯· ðŸ¯¸ ðŸ¯¹
 //!
 
 const std = @import("std");
@@ -140,35 +140,35 @@ pub fn draw1FB3C_1FB67(
     // Hand written lookup table for these shapes since I couldn't
     // determine any sort of mathematical pattern in the codepoints.
     const mosaic: SmoothMosaic = switch (cp) {
-        // '🬼'
+        // 'ðŸ¬¼'
         0x1fb3c => SmoothMosaic.from(
             \\...
             \\...
             \\#..
             \\##.
         ),
-        // '🬽'
+        // 'ðŸ¬½'
         0x1fb3d => SmoothMosaic.from(
             \\...
             \\...
             \\#\.
             \\###
         ),
-        // '🬾'
+        // 'ðŸ¬¾'
         0x1fb3e => SmoothMosaic.from(
             \\...
             \\#..
             \\#\.
             \\##.
         ),
-        // '🬿'
+        // 'ðŸ¬¿'
         0x1fb3f => SmoothMosaic.from(
             \\...
             \\#..
             \\##.
             \\###
         ),
-        // '🭀'
+        // 'ðŸ­€'
         0x1fb40 => SmoothMosaic.from(
             \\#..
             \\#..
@@ -176,42 +176,42 @@ pub fn draw1FB3C_1FB67(
             \\##.
         ),
 
-        // '🭁'
+        // 'ðŸ­'
         0x1fb41 => SmoothMosaic.from(
             \\/##
             \\###
             \\###
             \\###
         ),
-        // '🭂'
+        // 'ðŸ­‚'
         0x1fb42 => SmoothMosaic.from(
             \\./#
             \\###
             \\###
             \\###
         ),
-        // '🭃'
+        // 'ðŸ­ƒ'
         0x1fb43 => SmoothMosaic.from(
             \\.##
             \\.##
             \\###
             \\###
         ),
-        // '🭄'
+        // 'ðŸ­„'
         0x1fb44 => SmoothMosaic.from(
             \\..#
             \\.##
             \\###
             \\###
         ),
-        // '🭅'
+        // 'ðŸ­…'
         0x1fb45 => SmoothMosaic.from(
             \\.##
             \\.##
             \\.##
             \\###
         ),
-        // '🭆'
+        // 'ðŸ­†'
         0x1fb46 => SmoothMosaic.from(
             \\...
             \\./#
@@ -219,35 +219,35 @@ pub fn draw1FB3C_1FB67(
             \\###
         ),
 
-        // '🭇'
+        // 'ðŸ­‡'
         0x1fb47 => SmoothMosaic.from(
             \\...
             \\...
             \\..#
             \\.##
         ),
-        // '🭈'
+        // 'ðŸ­ˆ'
         0x1fb48 => SmoothMosaic.from(
             \\...
             \\...
             \\./#
             \\###
         ),
-        // '🭉'
+        // 'ðŸ­‰'
         0x1fb49 => SmoothMosaic.from(
             \\...
             \\..#
             \\./#
             \\.##
         ),
-        // '🭊'
+        // 'ðŸ­Š'
         0x1fb4a => SmoothMosaic.from(
             \\...
             \\..#
             \\.##
             \\###
         ),
-        // '🭋'
+        // 'ðŸ­‹'
         0x1fb4b => SmoothMosaic.from(
             \\..#
             \\..#
@@ -255,42 +255,42 @@ pub fn draw1FB3C_1FB67(
             \\.##
         ),
 
-        // '🭌'
+        // 'ðŸ­Œ'
         0x1fb4c => SmoothMosaic.from(
             \\##\
             \\###
             \\###
             \\###
         ),
-        // '🭍'
+        // 'ðŸ­'
         0x1fb4d => SmoothMosaic.from(
             \\#\.
             \\###
             \\###
             \\###
         ),
-        // '🭎'
+        // 'ðŸ­Ž'
         0x1fb4e => SmoothMosaic.from(
             \\##.
             \\##.
             \\###
             \\###
         ),
-        // '🭏'
+        // 'ðŸ­'
         0x1fb4f => SmoothMosaic.from(
             \\#..
             \\##.
             \\###
             \\###
         ),
-        // '🭐'
+        // 'ðŸ­'
         0x1fb50 => SmoothMosaic.from(
             \\##.
             \\##.
             \\##.
             \\###
         ),
-        // '🭑'
+        // 'ðŸ­‘'
         0x1fb51 => SmoothMosaic.from(
             \\...
             \\#\.
@@ -298,35 +298,35 @@ pub fn draw1FB3C_1FB67(
             \\###
         ),
 
-        // '🭒'
+        // 'ðŸ­’'
         0x1fb52 => SmoothMosaic.from(
             \\###
             \\###
             \\###
             \\\##
         ),
-        // '🭓'
+        // 'ðŸ­“'
         0x1fb53 => SmoothMosaic.from(
             \\###
             \\###
             \\###
             \\.\#
         ),
-        // '🭔'
+        // 'ðŸ­”'
         0x1fb54 => SmoothMosaic.from(
             \\###
             \\###
             \\.##
             \\.##
         ),
-        // '🭕'
+        // 'ðŸ­•'
         0x1fb55 => SmoothMosaic.from(
             \\###
             \\###
             \\.##
             \\..#
         ),
-        // '🭖'
+        // 'ðŸ­–'
         0x1fb56 => SmoothMosaic.from(
             \\###
             \\.##
@@ -334,35 +334,35 @@ pub fn draw1FB3C_1FB67(
             \\.##
         ),
 
-        // '🭗'
+        // 'ðŸ­—'
         0x1fb57 => SmoothMosaic.from(
             \\##.
             \\#..
             \\...
             \\...
         ),
-        // '🭘'
+        // 'ðŸ­˜'
         0x1fb58 => SmoothMosaic.from(
             \\###
             \\#/.
             \\...
             \\...
         ),
-        // '🭙'
+        // 'ðŸ­™'
         0x1fb59 => SmoothMosaic.from(
             \\##.
             \\#/.
             \\#..
             \\...
         ),
-        // '🭚'
+        // 'ðŸ­š'
         0x1fb5a => SmoothMosaic.from(
             \\###
             \\##.
             \\#..
             \\...
         ),
-        // '🭛'
+        // 'ðŸ­›'
         0x1fb5b => SmoothMosaic.from(
             \\##.
             \\##.
@@ -370,42 +370,42 @@ pub fn draw1FB3C_1FB67(
             \\#..
         ),
 
-        // '🭜'
+        // 'ðŸ­œ'
         0x1fb5c => SmoothMosaic.from(
             \\###
             \\###
             \\#/.
             \\...
         ),
-        // '🭝'
+        // 'ðŸ­'
         0x1fb5d => SmoothMosaic.from(
             \\###
             \\###
             \\###
             \\##/
         ),
-        // '🭞'
+        // 'ðŸ­ž'
         0x1fb5e => SmoothMosaic.from(
             \\###
             \\###
             \\###
             \\#/.
         ),
-        // '🭟'
+        // 'ðŸ­Ÿ'
         0x1fb5f => SmoothMosaic.from(
             \\###
             \\###
             \\##.
             \\##.
         ),
-        // '🭠'
+        // 'ðŸ­ '
         0x1fb60 => SmoothMosaic.from(
             \\###
             \\###
             \\##.
             \\#..
         ),
-        // '🭡'
+        // 'ðŸ­¡'
         0x1fb61 => SmoothMosaic.from(
             \\###
             \\##.
@@ -413,42 +413,42 @@ pub fn draw1FB3C_1FB67(
             \\##.
         ),
 
-        // '🭢'
+        // 'ðŸ­¢'
         0x1fb62 => SmoothMosaic.from(
             \\.##
             \\..#
             \\...
             \\...
         ),
-        // '🭣'
+        // 'ðŸ­£'
         0x1fb63 => SmoothMosaic.from(
             \\###
             \\.\#
             \\...
             \\...
         ),
-        // '🭤'
+        // 'ðŸ­¤'
         0x1fb64 => SmoothMosaic.from(
             \\.##
             \\.\#
             \\..#
             \\...
         ),
-        // '🭥'
+        // 'ðŸ­¥'
         0x1fb65 => SmoothMosaic.from(
             \\###
             \\.##
             \\..#
             \\...
         ),
-        // '🭦'
+        // 'ðŸ­¦'
         0x1fb66 => SmoothMosaic.from(
             \\.##
             \\.##
             \\..#
             \\..#
         ),
-        // '🭧'
+        // 'ðŸ­§'
         0x1fb67 => SmoothMosaic.from(
             \\###
             \\###
@@ -493,7 +493,7 @@ pub fn draw1FB68_1FB6F(
     _ = height;
 
     switch (cp) {
-        // '🭨'
+        // 'ðŸ­¨'
         0x1fb68 => {
             try edgeTriangle(metrics, canvas, .left);
             canvas.invert();
@@ -503,7 +503,7 @@ pub fn draw1FB68_1FB6F(
             canvas.clip_top = canvas.padding_y;
             canvas.clip_bottom = canvas.padding_y;
         },
-        // '🭩'
+        // 'ðŸ­©'
         0x1fb69 => {
             try edgeTriangle(metrics, canvas, .top);
             canvas.invert();
@@ -513,7 +513,7 @@ pub fn draw1FB68_1FB6F(
             canvas.clip_top = canvas.padding_y;
             canvas.clip_bottom = canvas.padding_y;
         },
-        // '🭪'
+        // 'ðŸ­ª'
         0x1fb6a => {
             try edgeTriangle(metrics, canvas, .right);
             canvas.invert();
@@ -523,7 +523,7 @@ pub fn draw1FB68_1FB6F(
             canvas.clip_top = canvas.padding_y;
             canvas.clip_bottom = canvas.padding_y;
         },
-        // '🭫'
+        // 'ðŸ­«'
         0x1fb6b => {
             try edgeTriangle(metrics, canvas, .bottom);
             canvas.invert();
@@ -533,13 +533,13 @@ pub fn draw1FB68_1FB6F(
             canvas.clip_top = canvas.padding_y;
             canvas.clip_bottom = canvas.padding_y;
         },
-        // '🭬'
+        // 'ðŸ­¬'
         0x1fb6c => try edgeTriangle(metrics, canvas, .left),
-        // '🭭'
+        // 'ðŸ­­'
         0x1fb6d => try edgeTriangle(metrics, canvas, .top),
-        // '🭮'
+        // 'ðŸ­®'
         0x1fb6e => try edgeTriangle(metrics, canvas, .right),
-        // '🭯'
+        // 'ðŸ­¯'
         0x1fb6f => try edgeTriangle(metrics, canvas, .bottom),
 
         else => unreachable,
@@ -601,32 +601,32 @@ pub fn draw1FB7C_1FB97(
 ) !void {
     switch (cp) {
 
-        // '🭼' LEFT AND LOWER ONE EIGHTH BLOCK
+        // 'ðŸ­¼' LEFT AND LOWER ONE EIGHTH BLOCK
         0x1fb7c => {
             block.block(metrics, canvas, .left, one_eighth, 1);
             block.block(metrics, canvas, .lower, 1, one_eighth);
         },
-        // '🭽' LEFT AND UPPER ONE EIGHTH BLOCK
+        // 'ðŸ­½' LEFT AND UPPER ONE EIGHTH BLOCK
         0x1fb7d => {
             block.block(metrics, canvas, .left, one_eighth, 1);
             block.block(metrics, canvas, .upper, 1, one_eighth);
         },
-        // '🭾' RIGHT AND UPPER ONE EIGHTH BLOCK
+        // 'ðŸ­¾' RIGHT AND UPPER ONE EIGHTH BLOCK
         0x1fb7e => {
             block.block(metrics, canvas, .right, one_eighth, 1);
             block.block(metrics, canvas, .upper, 1, one_eighth);
         },
-        // '🭿' RIGHT AND LOWER ONE EIGHTH BLOCK
+        // 'ðŸ­¿' RIGHT AND LOWER ONE EIGHTH BLOCK
         0x1fb7f => {
             block.block(metrics, canvas, .right, one_eighth, 1);
             block.block(metrics, canvas, .lower, 1, one_eighth);
         },
-        // '🮀' UPPER AND LOWER ONE EIGHTH BLOCK
+        // 'ðŸ®€' UPPER AND LOWER ONE EIGHTH BLOCK
         0x1fb80 => {
             block.block(metrics, canvas, .upper, 1, one_eighth);
             block.block(metrics, canvas, .lower, 1, one_eighth);
         },
-        // '🮁' Horizontal One Eighth Block 1358
+        // 'ðŸ®' Horizontal One Eighth Block 1358
         0x1fb81 => {
             // We just call the draw function for each of the relevant codepoints.
             // The first codepoint is actually a lie, it's before the range, but
@@ -638,45 +638,45 @@ pub fn draw1FB7C_1FB97(
             try draw1FB76_1FB7B(0x1fb74 + 8, canvas, width, height, metrics);
         },
 
-        // '🮂' UPPER ONE QUARTER BLOCK
+        // 'ðŸ®‚' UPPER ONE QUARTER BLOCK
         0x1fb82 => block.block(metrics, canvas, .upper, 1, one_quarter),
-        // '🮃' UPPER THREE EIGHTHS BLOCK
+        // 'ðŸ®ƒ' UPPER THREE EIGHTHS BLOCK
         0x1fb83 => block.block(metrics, canvas, .upper, 1, three_eighths),
-        // '🮄' UPPER FIVE EIGHTHS BLOCK
+        // 'ðŸ®„' UPPER FIVE EIGHTHS BLOCK
         0x1fb84 => block.block(metrics, canvas, .upper, 1, five_eighths),
-        // '🮅' UPPER THREE QUARTERS BLOCK
+        // 'ðŸ®…' UPPER THREE QUARTERS BLOCK
         0x1fb85 => block.block(metrics, canvas, .upper, 1, three_quarters),
-        // '🮆' UPPER SEVEN EIGHTHS BLOCK
+        // 'ðŸ®†' UPPER SEVEN EIGHTHS BLOCK
         0x1fb86 => block.block(metrics, canvas, .upper, 1, seven_eighths),
 
-        // '🮇' RIGHT ONE QUARTER BLOCK
+        // 'ðŸ®‡' RIGHT ONE QUARTER BLOCK
         0x1fb87 => block.block(metrics, canvas, .right, one_quarter, 1),
-        // '🮈' RIGHT THREE EIGHTHS BLOCK
+        // 'ðŸ®ˆ' RIGHT THREE EIGHTHS BLOCK
         0x1fb88 => block.block(metrics, canvas, .right, three_eighths, 1),
-        // '🮉' RIGHT FIVE EIGHTHS BLOCK
+        // 'ðŸ®‰' RIGHT FIVE EIGHTHS BLOCK
         0x1fb89 => block.block(metrics, canvas, .right, five_eighths, 1),
-        // '🮊' RIGHT THREE QUARTERS BLOCK
+        // 'ðŸ®Š' RIGHT THREE QUARTERS BLOCK
         0x1fb8a => block.block(metrics, canvas, .right, three_quarters, 1),
-        // '🮋' RIGHT SEVEN EIGHTHS BLOCK/
+        // 'ðŸ®‹' RIGHT SEVEN EIGHTHS BLOCK/
         0x1fb8b => block.block(metrics, canvas, .right, seven_eighths, 1),
 
-        // '🮌'
+        // 'ðŸ®Œ'
         0x1fb8c => block.blockShade(metrics, canvas, .left, half, 1, .medium),
-        // '🮍'
+        // 'ðŸ®'
         0x1fb8d => block.blockShade(metrics, canvas, .right, half, 1, .medium),
-        // '🮎'
+        // 'ðŸ®Ž'
         0x1fb8e => block.blockShade(metrics, canvas, .upper, 1, half, .medium),
-        // '🮏'
+        // 'ðŸ®'
         0x1fb8f => block.blockShade(metrics, canvas, .lower, 1, half, .medium),
 
-        // '🮐'
+        // 'ðŸ®'
         0x1fb90 => block.fullBlockShade(metrics, canvas, .medium),
-        // '🮑'
+        // 'ðŸ®‘'
         0x1fb91 => {
             block.fullBlockShade(metrics, canvas, .medium);
             block.block(metrics, canvas, .upper, 1, half);
         },
-        // '🮒'
+        // 'ðŸ®’'
         0x1fb92 => {
             block.fullBlockShade(metrics, canvas, .medium);
             block.block(metrics, canvas, .lower, 1, half);
@@ -686,16 +686,16 @@ pub fn draw1FB7C_1FB97(
             //       in the unicode block, so it's safe to just render it
             //       as an empty glyph, probably.
         },
-        // '🮔'
+        // 'ðŸ®”'
         0x1fb94 => {
             block.fullBlockShade(metrics, canvas, .medium);
             block.block(metrics, canvas, .right, half, 1);
         },
-        // '🮕'
+        // 'ðŸ®•'
         0x1fb95 => checkerboardFill(metrics, canvas, 0),
-        // '🮖'
+        // 'ðŸ®–'
         0x1fb96 => checkerboardFill(metrics, canvas, 1),
-        // '🮗'
+        // 'ðŸ®—'
         0x1fb97 => {
             canvas.box(
                 0,
@@ -718,7 +718,7 @@ pub fn draw1FB7C_1FB97(
 }
 
 /// Upper Left to Lower Right Fill
-/// 🮘
+/// ðŸ®˜
 pub fn draw1FB98(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -758,7 +758,7 @@ pub fn draw1FB98(
 }
 
 /// Upper Right to Lower Left Fill
-/// 🮙
+/// ðŸ®™
 pub fn draw1FB99(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -808,23 +808,23 @@ pub fn draw1FB9A_1FB9F(
     _ = height;
 
     switch (cp) {
-        // '🮚'
+        // 'ðŸ®š'
         0x1fb9a => {
             try edgeTriangle(metrics, canvas, .top);
             try edgeTriangle(metrics, canvas, .bottom);
         },
-        // '🮛'
+        // 'ðŸ®›'
         0x1fb9b => {
             try edgeTriangle(metrics, canvas, .left);
             try edgeTriangle(metrics, canvas, .right);
         },
-        // '🮜'
+        // 'ðŸ®œ'
         0x1fb9c => try geo.cornerTriangleShade(metrics, canvas, .tl, .medium),
-        // '🮝'
+        // 'ðŸ®'
         0x1fb9d => try geo.cornerTriangleShade(metrics, canvas, .tr, .medium),
-        // '🮞'
+        // 'ðŸ®ž'
         0x1fb9e => try geo.cornerTriangleShade(metrics, canvas, .br, .medium),
-        // '🮟'
+        // 'ðŸ®Ÿ'
         0x1fb9f => try geo.cornerTriangleShade(metrics, canvas, .bl, .medium),
 
         else => unreachable,
@@ -842,42 +842,42 @@ pub fn draw1FBA0_1FBAE(
     _ = height;
 
     switch (cp) {
-        // '🮠'
+        // 'ðŸ® '
         0x1fba0 => cornerDiagonalLines(metrics, canvas, .{ .tl = true }),
-        // '🮡'
+        // 'ðŸ®¡'
         0x1fba1 => cornerDiagonalLines(metrics, canvas, .{ .tr = true }),
-        // '🮢'
+        // 'ðŸ®¢'
         0x1fba2 => cornerDiagonalLines(metrics, canvas, .{ .bl = true }),
-        // '🮣'
+        // 'ðŸ®£'
         0x1fba3 => cornerDiagonalLines(metrics, canvas, .{ .br = true }),
-        // '🮤'
+        // 'ðŸ®¤'
         0x1fba4 => cornerDiagonalLines(metrics, canvas, .{ .tl = true, .bl = true }),
-        // '🮥'
+        // 'ðŸ®¥'
         0x1fba5 => cornerDiagonalLines(metrics, canvas, .{ .tr = true, .br = true }),
-        // '🮦'
+        // 'ðŸ®¦'
         0x1fba6 => cornerDiagonalLines(metrics, canvas, .{ .bl = true, .br = true }),
-        // '🮧'
+        // 'ðŸ®§'
         0x1fba7 => cornerDiagonalLines(metrics, canvas, .{ .tl = true, .tr = true }),
-        // '🮨'
+        // 'ðŸ®¨'
         0x1fba8 => cornerDiagonalLines(metrics, canvas, .{ .tl = true, .br = true }),
-        // '🮩'
+        // 'ðŸ®©'
         0x1fba9 => cornerDiagonalLines(metrics, canvas, .{ .tr = true, .bl = true }),
-        // '🮪'
+        // 'ðŸ®ª'
         0x1fbaa => cornerDiagonalLines(metrics, canvas, .{ .tr = true, .bl = true, .br = true }),
-        // '🮫'
+        // 'ðŸ®«'
         0x1fbab => cornerDiagonalLines(metrics, canvas, .{ .tl = true, .bl = true, .br = true }),
-        // '🮬'
+        // 'ðŸ®¬'
         0x1fbac => cornerDiagonalLines(metrics, canvas, .{ .tl = true, .tr = true, .br = true }),
-        // '🮭'
+        // 'ðŸ®­'
         0x1fbad => cornerDiagonalLines(metrics, canvas, .{ .tl = true, .tr = true, .bl = true }),
-        // '🮮'
+        // 'ðŸ®®'
         0x1fbae => cornerDiagonalLines(metrics, canvas, .{ .tl = true, .tr = true, .bl = true, .br = true }),
 
         else => unreachable,
     }
 }
 
-/// 🮯
+/// ðŸ®¯
 pub fn draw1FBAF(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -897,7 +897,7 @@ pub fn draw1FBAF(
     });
 }
 
-/// 🮽
+/// ðŸ®½
 pub fn draw1FBBD(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -918,7 +918,7 @@ pub fn draw1FBBD(
     canvas.clip_bottom = canvas.padding_y;
 }
 
-/// 🮾
+/// ðŸ®¾
 pub fn draw1FBBE(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -939,7 +939,7 @@ pub fn draw1FBBE(
     canvas.clip_bottom = canvas.padding_y;
 }
 
-/// 🮿
+/// ðŸ®¿
 pub fn draw1FBBF(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -965,7 +965,7 @@ pub fn draw1FBBF(
     canvas.clip_bottom = canvas.padding_y;
 }
 
-/// 🯎
+/// ðŸ¯Ž
 pub fn draw1FBCE(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -980,7 +980,7 @@ pub fn draw1FBCE(
     block.block(metrics, canvas, .left, two_thirds, 1);
 }
 
-// 🯏
+// ðŸ¯
 pub fn draw1FBCF(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -1007,63 +1007,63 @@ pub fn draw1FBD0_1FBDF(
     _ = height;
 
     switch (cp) {
-        // '🯐'
+        // 'ðŸ¯'
         0x1fbd0 => cellDiagonal(
             metrics,
             canvas,
             .middle_right,
             .lower_left,
         ),
-        // '🯑'
+        // 'ðŸ¯‘'
         0x1fbd1 => cellDiagonal(
             metrics,
             canvas,
             .upper_right,
             .middle_left,
         ),
-        // '🯒'
+        // 'ðŸ¯’'
         0x1fbd2 => cellDiagonal(
             metrics,
             canvas,
             .upper_left,
             .middle_right,
         ),
-        // '🯓'
+        // 'ðŸ¯“'
         0x1fbd3 => cellDiagonal(
             metrics,
             canvas,
             .middle_left,
             .lower_right,
         ),
-        // '🯔'
+        // 'ðŸ¯”'
         0x1fbd4 => cellDiagonal(
             metrics,
             canvas,
             .upper_left,
             .lower_center,
         ),
-        // '🯕'
+        // 'ðŸ¯•'
         0x1fbd5 => cellDiagonal(
             metrics,
             canvas,
             .upper_center,
             .lower_right,
         ),
-        // '🯖'
+        // 'ðŸ¯–'
         0x1fbd6 => cellDiagonal(
             metrics,
             canvas,
             .upper_right,
             .lower_center,
         ),
-        // '🯗'
+        // 'ðŸ¯—'
         0x1fbd7 => cellDiagonal(
             metrics,
             canvas,
             .upper_center,
             .lower_left,
         ),
-        // '🯘'
+        // 'ðŸ¯˜'
         0x1fbd8 => {
             cellDiagonal(
                 metrics,
@@ -1078,7 +1078,7 @@ pub fn draw1FBD0_1FBDF(
                 .upper_right,
             );
         },
-        // '🯙'
+        // 'ðŸ¯™'
         0x1fbd9 => {
             cellDiagonal(
                 metrics,
@@ -1093,7 +1093,7 @@ pub fn draw1FBD0_1FBDF(
                 .lower_right,
             );
         },
-        // '🯚'
+        // 'ðŸ¯š'
         0x1fbda => {
             cellDiagonal(
                 metrics,
@@ -1108,7 +1108,7 @@ pub fn draw1FBD0_1FBDF(
                 .lower_right,
             );
         },
-        // '🯛'
+        // 'ðŸ¯›'
         0x1fbdb => {
             cellDiagonal(
                 metrics,
@@ -1123,7 +1123,7 @@ pub fn draw1FBD0_1FBDF(
                 .lower_left,
             );
         },
-        // '🯜'
+        // 'ðŸ¯œ'
         0x1fbdc => {
             cellDiagonal(
                 metrics,
@@ -1138,7 +1138,7 @@ pub fn draw1FBD0_1FBDF(
                 .upper_right,
             );
         },
-        // '🯝'
+        // 'ðŸ¯'
         0x1fbdd => {
             cellDiagonal(
                 metrics,
@@ -1153,7 +1153,7 @@ pub fn draw1FBD0_1FBDF(
                 .lower_right,
             );
         },
-        // '🯞'
+        // 'ðŸ¯ž'
         0x1fbde => {
             cellDiagonal(
                 metrics,
@@ -1168,7 +1168,7 @@ pub fn draw1FBD0_1FBDF(
                 .lower_right,
             );
         },
-        // '🯟'
+        // 'ðŸ¯Ÿ'
         0x1fbdf => {
             cellDiagonal(
                 metrics,
@@ -1199,37 +1199,37 @@ pub fn draw1FBE0_1FBEF(
     _ = height;
 
     switch (cp) {
-        // '🯠'
+        // 'ðŸ¯ '
         0x1fbe0 => circle(metrics, canvas, .top, false),
-        // '🯡'
+        // 'ðŸ¯¡'
         0x1fbe1 => circle(metrics, canvas, .right, false),
-        // '🯢'
+        // 'ðŸ¯¢'
         0x1fbe2 => circle(metrics, canvas, .bottom, false),
-        // '🯣'
+        // 'ðŸ¯£'
         0x1fbe3 => circle(metrics, canvas, .left, false),
-        // '🯤'
+        // 'ðŸ¯¤'
         0x1fbe4 => block.block(metrics, canvas, .upper_center, 0.5, 0.5),
-        // '🯥'
+        // 'ðŸ¯¥'
         0x1fbe5 => block.block(metrics, canvas, .lower_center, 0.5, 0.5),
-        // '🯦'
+        // 'ðŸ¯¦'
         0x1fbe6 => block.block(metrics, canvas, .middle_left, 0.5, 0.5),
-        // '🯧'
+        // 'ðŸ¯§'
         0x1fbe7 => block.block(metrics, canvas, .middle_right, 0.5, 0.5),
-        // '🯨'
+        // 'ðŸ¯¨'
         0x1fbe8 => circle(metrics, canvas, .top, true),
-        // '🯩'
+        // 'ðŸ¯©'
         0x1fbe9 => circle(metrics, canvas, .right, true),
-        // '🯪'
+        // 'ðŸ¯ª'
         0x1fbea => circle(metrics, canvas, .bottom, true),
-        // '🯫'
+        // 'ðŸ¯«'
         0x1fbeb => circle(metrics, canvas, .left, true),
-        // '🯬'
+        // 'ðŸ¯¬'
         0x1fbec => circle(metrics, canvas, .top_right, true),
-        // '🯭'
+        // 'ðŸ¯­'
         0x1fbed => circle(metrics, canvas, .bottom_left, true),
-        // '🯮'
+        // 'ðŸ¯®'
         0x1fbee => circle(metrics, canvas, .bottom_right, true),
-        // '🯯'
+        // 'ðŸ¯¯'
         0x1fbef => circle(metrics, canvas, .top_left, true),
 
         else => unreachable,

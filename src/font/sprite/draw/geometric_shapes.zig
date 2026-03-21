@@ -1,12 +1,12 @@
 //! Geometric Shapes | U+25A0...U+25FF
 //! https://en.wikipedia.org/wiki/Geometric_Shapes_(Unicode_block)
 //!
-//! ■ □ ▢ ▣ ▤ ▥ ▦ ▧ ▨ ▩ ▪ ▫ ▬ ▭ ▮ ▯
-//! ▰ ▱ ▲ △ ▴ ▵ ▶ ▷ ▸ ▹ ► ▻ ▼ ▽ ▾ ▿
-//! ◀ ◁ ◂ ◃ ◄ ◅ ◆ ◇ ◈ ◉ ◊ ○ ◌ ◍ ◎ ●
-//! ◐ ◑ ◒ ◓ ◔ ◕ ◖ ◗ ◘ ◙ ◚ ◛ ◜ ◝ ◞ ◟
-//! ◠ ◡ ◢ ◣ ◤ ◥ ◦ ◧ ◨ ◩ ◪ ◫ ◬ ◭ ◮ ◯
-//! ◰ ◱ ◲ ◳ ◴ ◵ ◶ ◷ ◸ ◹ ◺ ◻ ◼ ◽︎◾︎◿
+//! â–  â–¡ â–¢ â–£ â–¤ â–¥ â–¦ â–§ â–¨ â–© â–ª â–« â–¬ â–­ â–® â–¯
+//! â–° â–± â–² â–³ â–´ â–µ â–¶ â–· â–¸ â–¹ â–º â–» â–¼ â–½ â–¾ â–¿
+//! â—€ â— â—‚ â—ƒ â—„ â—… â—† â—‡ â—ˆ â—‰ â—Š â—‹ â—Œ â— â—Ž â—
+//! â— â—‘ â—’ â—“ â—” â—• â—– â—— â—˜ â—™ â—š â—› â—œ â— â—ž â—Ÿ
+//! â—  â—¡ â—¢ â—£ â—¤ â—¥ â—¦ â—§ â—¨ â—© â—ª â—« â—¬ â—­ â—® â—¯
+//! â—° â—± â—² â—³ â—´ â—µ â—¶ â—· â—¸ â—¹ â—º â—» â—¼ â—½ï¸Žâ—¾ï¸Žâ—¿
 //!
 //! Only a subset of this block is viable for sprite drawing; filling
 //! out this file to have full coverage of this block is not the goal.
@@ -22,7 +22,7 @@ const Shade = common.Shade;
 
 const font = @import("../../main.zig");
 
-/// ◢ ◣ ◤ ◥
+/// â—¢ â—£ â—¤ â—¥
 pub fn draw25E2_25E5(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -33,20 +33,20 @@ pub fn draw25E2_25E5(
     _ = width;
     _ = height;
     switch (cp) {
-        // ◢
+        // â—¢
         0x25e2 => try cornerTriangleShade(metrics, canvas, .br, .on),
-        // ◣
+        // â—£
         0x25e3 => try cornerTriangleShade(metrics, canvas, .bl, .on),
-        // ◤
+        // â—¤
         0x25e4 => try cornerTriangleShade(metrics, canvas, .tl, .on),
-        // ◥
+        // â—¥
         0x25e5 => try cornerTriangleShade(metrics, canvas, .tr, .on),
 
         else => unreachable,
     }
 }
 
-/// ◸ ◹ ◺
+/// â—¸ â—¹ â—º
 pub fn draw25F8_25FA(
     cp: u32,
     canvas: *font.sprite.Canvas,
@@ -57,18 +57,18 @@ pub fn draw25F8_25FA(
     _ = width;
     _ = height;
     switch (cp) {
-        // ◸
+        // â—¸
         0x25f8 => try cornerTriangleOutline(metrics, canvas, .tl),
-        // ◹
+        // â—¹
         0x25f9 => try cornerTriangleOutline(metrics, canvas, .tr),
-        // ◺
+        // â—º
         0x25fa => try cornerTriangleOutline(metrics, canvas, .bl),
 
         else => unreachable,
     }
 }
 
-/// ◿
+/// â—¿
 pub fn draw25FF(
     cp: u32,
     canvas: *font.sprite.Canvas,
