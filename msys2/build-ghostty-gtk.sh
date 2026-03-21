@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Experimental: build Ghostty on Windows (MinGW) with GLFW (#773) or GTK.
+# Experimental: build Ghostty on Windows (MinGW) with GTK.
 # Tip: use UCRT64 (ucrt64.exe) when possible — fewer CRT/link quirks than MINGW64 for GTK + Zig.
 #
 # Usage from Ghostty repo root:
@@ -9,10 +9,6 @@
 #   ./msys2/build-ghostty-gtk.sh PATH_TO_GHOSTTY_REPO [zig build args…]
 #   GHOSTTY_SRC=/path/to/ghostty ./msys2/build-ghostty-gtk.sh [zig build args…]
 #
-# GHOSTTY_APP_RUNTIME:
-#   gtk (default)  — passes -Dapp-runtime=gtk -Dgtk-x11=false -Dgtk-wayland=false
-#   glfw           — passes -Dapp-runtime=glfw (issue #773; not implemented on main yet)
-
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -158,35 +154,15 @@ if ! command -v pkg-config >/dev/null 2>&1 && ! command -v pkgconf >/dev/null 2>
   exit 1
 fi
 
-GHOSTTY_APP_RUNTIME="${GHOSTTY_APP_RUNTIME:-gtk}"
-
-case "${GHOSTTY_APP_RUNTIME}" in
-glfw)
-  if ! pkg-config --exists glfw3; then
-    echo "error: pkg-config cannot find glfw3. Install e.g. \${MINGW_PACKAGE_PREFIX}-glfw (bootstrap-pkgs.sh)." >&2
-    exit 1
-  fi
-  if ! pkg-config --exists freetype2; then
-    echo "error: pkg-config cannot find freetype2. Install \${MINGW_PACKAGE_PREFIX}-freetype (bootstrap-pkgs.sh)." >&2
-    exit 1
-  fi
-  ;;
-gtk)
-  if ! pkg-config --exists gtk4; then
-    echo "error: pkg-config cannot find gtk4. Expected e.g. ${MINGW_PREFIX}/lib/pkgconfig/gtk4.pc" >&2
-    echo "  which pkg-config; pacman -S \"\${MINGW_PACKAGE_PREFIX}-gtk4\" (run bootstrap-pkgs.sh)" >&2
-    exit 1
-  fi
-  if ! pkg-config --exists libadwaita-1; then
-    echo "error: pkg-config cannot find libadwaita-1. Install libadwaita for your MinGW flavor (bootstrap-pkgs.sh)." >&2
-    exit 1
-  fi
-  ;;
-*)
-  echo "error: GHOSTTY_APP_RUNTIME must be glfw or gtk, got: ${GHOSTTY_APP_RUNTIME}" >&2
+if ! pkg-config --exists gtk4; then
+  echo "error: pkg-config cannot find gtk4. Expected e.g. ${MINGW_PREFIX}/lib/pkgconfig/gtk4.pc" >&2
+  echo "  which pkg-config; pacman -S \"\${MINGW_PACKAGE_PREFIX}-gtk4\" (run msys2/bootstrap-pkgs.sh)" >&2
   exit 1
-  ;;
-esac
+fi
+if ! pkg-config --exists libadwaita-1; then
+  echo "error: pkg-config cannot find libadwaita-1. Install libadwaita for your MinGW flavor (msys2/bootstrap-pkgs.sh)." >&2
+  exit 1
+fi
 
 REPO_ROOT=""
 if [[ -n "${1:-}" && "${1}" != -* ]]; then
@@ -229,34 +205,27 @@ fi
 cd "$REPO_ROOT"
 
 echo "==> zig version: $(zig version)"
-echo "==> app runtime: ${GHOSTTY_APP_RUNTIME}"
+echo "==> app runtime: gtk"
 echo "==> MINGW_PREFIX=${MINGW_PREFIX}"
 echo "==> PKG_CONFIG_LIBDIR=${PKG_CONFIG_LIBDIR}"
 
-if [[ "${GHOSTTY_APP_RUNTIME}" == "gtk" ]]; then
-  ensure_ghostty_blueprint_compiler || exit 1
-  ensure_ghostty_blueprint_pythonpath
-  # Native Windows Python defaults to cp1252 for open(); Ghostty .blp files are UTF-8 (emoji, …).
-  export PYTHONUTF8=1
-  if [[ -n "${GHOSTTY_BLUEPRINT_PYTHON:-}" ]]; then
-    echo "==> GHOSTTY_BLUEPRINT_PYTHON=${GHOSTTY_BLUEPRINT_PYTHON}"
-    echo "==> GHOSTTY_BLUEPRINT_SCRIPT=${GHOSTTY_BLUEPRINT_SCRIPT}"
-  else
-    echo "==> GHOSTTY_BLUEPRINT_COMPILER=${GHOSTTY_BLUEPRINT_COMPILER}"
-  fi
-  if [[ -n "${PYTHONPATH:-}" ]]; then
-    echo "==> PYTHONPATH=${PYTHONPATH} (for blueprintcompiler under Zig-spawned Python)"
-  fi
-  echo "==> PYTHONUTF8=1 (blueprint-compiler reads .blp as UTF-8, not cp1252)"
-  echo "==> building (GTK, no X11/Wayland) …"
-  exec zig build \
-    -Dapp-runtime=gtk \
-    -Dgtk-x11=false \
-    -Dgtk-wayland=false \
-    "${zig_args[@]}"
+ensure_ghostty_blueprint_compiler || exit 1
+ensure_ghostty_blueprint_pythonpath
+# Native Windows Python defaults to cp1252 for open(); Ghostty .blp files are UTF-8 (emoji, …).
+export PYTHONUTF8=1
+if [[ -n "${GHOSTTY_BLUEPRINT_PYTHON:-}" ]]; then
+  echo "==> GHOSTTY_BLUEPRINT_PYTHON=${GHOSTTY_BLUEPRINT_PYTHON}"
+  echo "==> GHOSTTY_BLUEPRINT_SCRIPT=${GHOSTTY_BLUEPRINT_SCRIPT}"
+else
+  echo "==> GHOSTTY_BLUEPRINT_COMPILER=${GHOSTTY_BLUEPRINT_COMPILER}"
 fi
-
-echo "==> building (GLFW path, issue #773) …"
+if [[ -n "${PYTHONPATH:-}" ]]; then
+  echo "==> PYTHONPATH=${PYTHONPATH} (for blueprintcompiler under Zig-spawned Python)"
+fi
+echo "==> PYTHONUTF8=1 (blueprint-compiler reads .blp as UTF-8, not cp1252)"
+echo "==> building (GTK, no X11/Wayland) …"
 exec zig build \
-  -Dapp-runtime=glfw \
+  -Dapp-runtime=gtk \
+  -Dgtk-x11=false \
+  -Dgtk-wayland=false \
   "${zig_args[@]}"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Install MinGW packages needed for experimental Ghostty Windows builds.
-# Default build-ghostty-gtk.sh uses GTK; optional GHOSTTY_APP_RUNTIME=glfw for #773 experiments.
+# This bootstrap targets the GTK runtime on Windows.
 # Typical invocation from the Ghostty repo root: ./msys2/bootstrap-pkgs.sh
 # Run from MINGW64, UCRT64, or CLANG64 (not plain MSYS).
 
@@ -24,13 +24,12 @@ echo "==> pacman sync (you may need to restart the shell if pacman asks)"
 pacman -Syyu --noconfirm || true
 
 echo "==> installing Ghostty build dependencies (${MINGW_PACKAGE_PREFIX}-*)"
-# GLFW path: glfw3 + freetype (pkg-config). GTK path: gtk4 + libadwaita; Zig builds other deps from build.zig.zon.
+# GTK path: gtk4 + libadwaita; Zig builds other deps from build.zig.zon.
 pacman -S --needed --noconfirm \
   base-devel \
   git \
   unzip \
   "${MINGW_PACKAGE_PREFIX}-toolchain" \
-  "${MINGW_PACKAGE_PREFIX}-glfw" \
   "${MINGW_PACKAGE_PREFIX}-freetype" \
   "${MINGW_PACKAGE_PREFIX}-gtk4" \
   "${MINGW_PACKAGE_PREFIX}-libadwaita" \
