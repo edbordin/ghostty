@@ -81,6 +81,6 @@ pub fn run(alloc: Allocator) !u8 {
     var buffer: [4096]u8 = undefined;
     var stdout_writer = stdout.writer(&buffer);
     try configfmt.format(&stdout_writer.interface);
-    try stdout_writer.end();
+    try stdout_writer.interface.flush();
     return 0;
 }

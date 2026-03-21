@@ -7,6 +7,7 @@ pub fn main() !void {
     var stdout_writer = std.fs.File.stdout().writer(&buffer);
     const stdout = &stdout_writer.interface;
     try genActions(stdout);
+    try stdout.flush();
 }
 
 // Note: as a shortcut for defining inline editOnGithubLinks per cli action the user

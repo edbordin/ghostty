@@ -6,4 +6,5 @@ pub fn main() !void {
     var stdout_writer = std.fs.File.stdout().writer(&buffer);
     const stdout = &stdout_writer.interface;
     try helpgen_actions.generate(stdout, .markdown, true, std.heap.page_allocator);
+    try stdout.flush();
 }

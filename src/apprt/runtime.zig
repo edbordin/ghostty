@@ -9,6 +9,10 @@ pub const Runtime = enum {
 
     /// GTK4. Rich windowed application. This uses a full GObject-based
     /// approach to building the application.
+    ///
+    /// Unsupported hack: on Windows you can try `-Dapp-runtime=gtk`
+    /// `-Dgtk-x11=false` `-Dgtk-wayland=false` with a GTK4/libadwaita stack
+    /// on your PATH (e.g. MSYS2). Default remains `none` on Windows.
     gtk,
 
     pub fn default(target: std.Target) Runtime {

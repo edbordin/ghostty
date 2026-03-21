@@ -95,7 +95,8 @@ pub fn draw1CD00_1CDE5(
     // that this is static data that is embedded in the binary.
     const octants_len = octant_max - octant_min + 1;
     const octants: [octants_len]Octant = comptime octants: {
-        @setEvalBranchQuota(10_000);
+        // Per-line trim + per-digit switch adds comptime branches; 10k is too low on some targets.
+        @setEvalBranchQuota(100_000);
 
         var result: [octants_len]Octant = @splat(.{});
         var i: usize = 0;
@@ -113,7 +114,21 @@ pub fn draw1CD00_1CDE5(
             // at the end are keys into our packed struct. Since we're
             // at comptime we can metaprogram it all.
             const idx = std.mem.indexOfScalar(u8, line, '-').?;
-            for (line[idx + 1 ..]) |c| @field(current, &.{c}) = true;
+            // `octants.txt` may be CRLF on disk (e.g. Windows checkout); trim so `\r` is not parsed.
+            const octant_digits = std.mem.trimRight(u8, line[idx + 1 ..], " \t\r\n");
+            for (octant_digits) |c| {
+                switch (c) {
+                    '1' => current.@"1" = true,
+                    '2' => current.@"2" = true,
+                    '3' => current.@"3" = true,
+                    '4' => current.@"4" = true,
+                    '5' => current.@"5" = true,
+                    '6' => current.@"6" = true,
+                    '7' => current.@"7" = true,
+                    '8' => current.@"8" = true,
+                    else => unreachable,
+                }
+            }
         }
 
         assert(i == octants_len);

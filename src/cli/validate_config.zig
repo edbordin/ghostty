@@ -43,7 +43,7 @@ pub fn run(alloc: std.mem.Allocator) !u8 {
     var stdout_writer = std.fs.File.stdout().writer(&buffer);
     const stdout = &stdout_writer.interface;
     const result = runInner(alloc, opts, stdout);
-    try stdout_writer.end();
+    try stdout_writer.interface.flush();
     return result;
 }
 

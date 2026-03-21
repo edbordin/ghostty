@@ -22,7 +22,7 @@ pub fn init(b: *std.Build, cfg: *const Config) !GhosttyDist {
     const alloc = b.allocator;
     var resources: std.ArrayListUnmanaged(Resource) = .empty;
     {
-        const gtk = SharedDeps.gtkNgDistResources(b);
+        const gtk = try SharedDeps.gtkNgDistResources(b);
         try resources.append(alloc, gtk.resources_c);
         try resources.append(alloc, gtk.resources_h);
     }

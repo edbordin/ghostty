@@ -567,6 +567,31 @@ fn addGtkNg(
         .target = target,
         .optimize = optimize,
     });
+
+    // Register GTK/GLib **before** zig-gobject module imports. Those modules call `linkTo` and add
+    // `linkSystemLibrary(..., .{ .use_pkg_config = .force })` without `preferred_link_mode = .dynamic`.
+    // If MinGW import-lib aliases are not on the search path first, the linker can pick
+    // `libglib-2.0.a` next to `libgtk-4.dll.a` and you get two GObject runtimes → `(NULL)` types,
+    // invalid signals, and `G_IS_APPLICATION` failure at runtime.
+    if (target.result.os.tag == .windows) {
+        if (std.process.getEnvVarOwned(b.allocator, "MINGW_PREFIX")) |mp| {
+            defer b.allocator.free(mp);
+            // Do not add `{MINGW_PREFIX}/include` here: it applies to every TU (including C++ SIMD
+            // sources). MinGW's C headers then precede Zig's libc++ "wrappers" and libc++ errors
+            // (e.g. <cstring> / <string.h>). GTK `-I` paths come from pkg-config only.
+            try addGtkBlueprintPkgConfigIncludePaths(b, step);
+            // On MinGW, let the gobject package link via explicit DLL import archives.
+            // Root-level `-l...` flags here can resolve to static GLib before Zig-emitted `-L`
+            // search paths are applied, causing mixed static/dynamic GLib at link/runtime.
+        } else |_| {
+            step.linkSystemLibrary2("gtk4", dynamic_link_opts);
+            step.linkSystemLibrary2("libadwaita-1", dynamic_link_opts);
+        }
+    } else {
+        step.linkSystemLibrary2("gtk4", dynamic_link_opts);
+        step.linkSystemLibrary2("libadwaita-1", dynamic_link_opts);
+    }
+
     if (gobject_) |gobject| {
         const gobject_imports = .{
             .{ "adw", "adw1" },
@@ -582,9 +607,6 @@ fn addGtkNg(
             step.root_module.addImport(name, gobject.module(module));
         }
     }
-
-    step.linkSystemLibrary2("gtk4", dynamic_link_opts);
-    step.linkSystemLibrary2("libadwaita-1", dynamic_link_opts);
 
     if (self.config.x11) {
         step.linkSystemLibrary2("X11", dynamic_link_opts);
@@ -688,8 +710,10 @@ fn addGtkNg(
 
     {
         // Get our gresource c/h files and add them to our build.
-        const dist = gtkNgDistResources(b);
-        step.addCSourceFile(.{ .file = dist.resources_c.path(b), .flags = &.{} });
+        const dist = try gtkNgDistResources(b);
+        // Keep gresource compilation neutral; we should solve static-vs-dynamic at link selection.
+        const gresource_cflags: []const []const u8 = &.{};
+        step.addCSourceFile(.{ .file = dist.resources_c.path(b), .flags = gresource_cflags });
         step.addIncludePath(dist.resources_h.path(b).dirname());
     }
 }
@@ -779,10 +803,304 @@ pub fn addSimd(
     }
 }
 
+/// Add include dirs from pkg-config so `#include <adwaita.h>` resolves (e.g. MSYS2
+/// uses include/libadwaita-1/, not include/adwaita.h).
+fn addGtkBlueprintPkgConfigIncludePaths(
+    b: *std.Build,
+    exe: *std.Build.Step.Compile,
+) !void {
+    const result = try std.process.Child.run(.{
+        .allocator = b.allocator,
+        .argv = &[_][]const u8{
+            "pkg-config",
+            "--cflags-only-I",
+            "gtk4",
+            "libadwaita-1",
+        },
+        .max_output_bytes = 256 * 1024,
+    });
+    defer b.allocator.free(result.stdout);
+    defer b.allocator.free(result.stderr);
+    if (result.term != .Exited or result.term.Exited != 0) return error.PkgConfigFailed;
+
+    var it = std.mem.tokenizeAny(u8, std.mem.trim(u8, result.stdout, " \t\r\n"), " \t\r\n");
+    while (it.next()) |tok| {
+        const dir: []const u8 = if (std.mem.eql(u8, tok, "-I"))
+            it.next() orelse continue
+        else if (std.mem.startsWith(u8, tok, "-I") and tok.len > 2)
+            tok[2..]
+        else
+            continue;
+        if (dir.len == 0) continue;
+        exe.addIncludePath(.{ .cwd_relative = dir });
+    }
+}
+
+/// Try to link a MinGW DLL import archive for `libname` from `lib_dir`.
+/// Returns true when a matching `*.dll.a` was found and linked.
+fn mingwCanonicalWindowsDir(
+    b: *std.Build,
+    lib_dir: []const u8,
+) []const u8 {
+    // Convert MSYS style `/c/foo` into native-style `C:/foo` for Windows-hosted Zig.
+    if (lib_dir.len >= 3 and lib_dir[0] == '/' and
+        std.ascii.isAlphabetic(lib_dir[1]) and lib_dir[2] == '/')
+    {
+        return b.fmt("{c}:/{s}", .{ std.ascii.toUpper(lib_dir[1]), lib_dir[3..] });
+    }
+
+    // Normalize `C:\foo\bar` into `C:/foo/bar` for consistent path joins.
+    if (lib_dir.len >= 3 and std.ascii.isAlphabetic(lib_dir[0]) and
+        lib_dir[1] == ':' and lib_dir[2] == '\\')
+    {
+        return std.mem.replaceOwned(u8, b.allocator, lib_dir, "\\", "/") catch lib_dir;
+    }
+
+    return lib_dir;
+}
+
+/// Return absolute path to `lib{name}.dll.a` (or `{name}.dll.a`) when present.
+fn mingwFindImportLibPath(
+    b: *std.Build,
+    lib_dir: []const u8,
+    libname: []const u8,
+) ?[]const u8 {
+    const canonical = mingwCanonicalWindowsDir(b, lib_dir);
+
+    const candidates = [_][]const u8{
+        b.fmt("lib{s}.dll.a", .{libname}),
+        b.fmt("{s}.dll.a", .{libname}),
+    };
+
+    var dir = std.fs.openDirAbsolute(canonical, .{}) catch return null;
+    defer dir.close();
+    for (candidates) |basename| {
+        if (dir.access(basename, .{})) {
+            return b.fmt("{s}/{s}", .{ canonical, basename });
+        } else |_| {}
+    }
+
+    return null;
+}
+
+fn mingwTryAddImportLibObject(
+    b: *std.Build,
+    exe: *std.Build.Step.Compile,
+    lib_dir: []const u8,
+    libname: []const u8,
+) bool {
+    const dir_candidates = [_][]const u8{
+        lib_dir,
+        mingwCanonicalWindowsDir(b, lib_dir),
+    };
+    for (dir_candidates) |d| {
+        if (mingwFindImportLibPath(b, d, libname)) |dll_a| {
+            exe.addObjectFile(.{ .cwd_relative = dll_a });
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/// Copy `lib{name}.dll.a` (or `{name}.dll.a`) into `wf` as `lib{name}.a` so Zig's linker can find
+/// it via `linkSystemLibrary2`.
+fn mingwDllImportAliasIntoWf(
+    b: *std.Build,
+    wf: *std.Build.Step.WriteFile,
+    lib_dir: []const u8,
+    libname: []const u8,
+) !bool {
+    const dir_candidates = [_][]const u8{
+        lib_dir,
+        mingwCanonicalWindowsDir(b, lib_dir),
+    };
+    for (dir_candidates) |d| {
+        if (mingwFindImportLibPath(b, d, libname)) |dll_a| {
+            _ = wf.addCopyFile(.{ .cwd_relative = dll_a }, b.fmt("lib{s}.a", .{libname}));
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/// Link MinGW import libs from pkg-config order. We alias `*.dll.a` as `lib*.a` and then link in
+/// pkg-config order to avoid Zig selecting static `lib*.a` archives (which can mix GLib runtimes).
+///
+/// Non-`--static` pkg-config output omits `Requires.private` / `Libs.private`, so the final link
+/// misses many transitive libs (libffi, harfbuzz deps, etc.). `--static` expands those while we
+/// still prefer DLLs via `dynamic_link_opts`.
+fn mingwPrependGtkDllImportAliases(
+    b: *std.Build,
+    exe: *std.Build.Step.Compile,
+    mingw_prefix: []const u8,
+) !void {
+    const result = try std.process.Child.run(.{
+        .allocator = b.allocator,
+        .argv = &[_][]const u8{
+            "pkg-config",
+            "--static",
+            "--libs-only-L",
+            "--libs-only-l",
+            "gtk4",
+            "libadwaita-1",
+        },
+        .max_output_bytes = 1024 * 1024,
+    });
+    defer b.allocator.free(result.stdout);
+    defer b.allocator.free(result.stderr);
+    if (result.term != .Exited or result.term.Exited != 0) return error.PkgConfigFailed;
+
+    const wf = b.addWriteFiles();
+    const default_ldir = b.fmt("{s}/lib", .{mingw_prefix});
+    var current_ldir: []const u8 = default_ldir;
+
+    var l_dirs: std.ArrayListUnmanaged([]const u8) = .empty;
+    defer l_dirs.deinit(b.allocator);
+
+    var link_order: std.ArrayListUnmanaged([]const u8) = .empty;
+    defer link_order.deinit(b.allocator);
+
+    var linked_once: std.StringArrayHashMapUnmanaged(void) = .empty;
+    defer linked_once.deinit(b.allocator);
+    var alias_added: std.StringArrayHashMapUnmanaged(void) = .empty;
+    defer alias_added.deinit(b.allocator);
+    var alias_count: usize = 0;
+
+    try l_dirs.append(b.allocator, default_ldir);
+
+    var saw_iconv = false;
+    var it = std.mem.tokenizeAny(u8, std.mem.trim(u8, result.stdout, " \t\r\n"), " \t\r\n");
+    while (it.next()) |tok| {
+        if (std.mem.startsWith(u8, tok, "-L")) {
+            if (tok.len > 2) {
+                current_ldir = tok[2..];
+                try l_dirs.append(b.allocator, current_ldir);
+            }
+        } else if (std.mem.startsWith(u8, tok, "-l")) {
+            if (tok.len <= 2) continue;
+            const libname = tok[2..];
+            if (std.mem.eql(u8, libname, "pthread")) continue;
+
+            if (std.mem.eql(u8, libname, "iconv")) saw_iconv = true;
+
+            try link_order.append(b.allocator, libname);
+            const gop = try linked_once.getOrPut(b.allocator, libname);
+            if (!gop.found_existing) {
+                if (try mingwDllImportAliasIntoWf(b, wf, current_ldir, libname)) {
+                    _ = try alias_added.getOrPut(b.allocator, libname);
+                    alias_count += 1;
+                }
+            }
+        }
+    }
+
+    // Static libintl expects GNU libiconv (libiconv_*); pkg-config may omit -liconv.
+    if (!saw_iconv) {
+        try link_order.append(b.allocator, "iconv");
+        const gop = try linked_once.getOrPut(b.allocator, "iconv");
+        if (!gop.found_existing) {
+            if (try mingwDllImportAliasIntoWf(b, wf, default_ldir, "iconv")) {
+                _ = try alias_added.getOrPut(b.allocator, "iconv");
+                alias_count += 1;
+            }
+        }
+    }
+
+    // Ensure core GTK/GLib aliases are present; otherwise Zig can silently fall back to static
+    // `lib*.a` and mix GLib runtimes (duplicate symbols, invalid GObject types/signals).
+    const required_aliases = [_][]const u8{
+        "gtk-4",
+        "adwaita-1",
+        "gio-2.0",
+        "gobject-2.0",
+        "glib-2.0",
+    };
+    for (required_aliases) |name| {
+        if (!alias_added.contains(name)) {
+            if (!try mingwDllImportAliasIntoWf(b, wf, default_ldir, name)) {
+                return error.MingwImportLibNotFound;
+            }
+            _ = try alias_added.getOrPut(b.allocator, name);
+            alias_count += 1;
+        }
+    }
+
+    if (alias_count > 0) {
+        const wf_dir = wf.getDirectory();
+        exe.addLibraryPath(wf_dir);
+        exe.root_module.addLibraryPath(wf_dir);
+    }
+    for (l_dirs.items) |d| {
+        exe.addLibraryPath(.{ .cwd_relative = b.fmt("{s}", .{d}) });
+    }
+    for (link_order.items) |libname| {
+        exe.linkSystemLibrary2(libname, dynamic_link_opts);
+    }
+}
+
+/// Link gtk4 + libadwaita for gtk_blueprint_compiler on MinGW. Zig's normal
+/// linkSystemLibrary search looks for libfoo.a / foo.dll, but MSYS2 provides
+/// import libraries named libfoo.dll.a — pass them explicitly via pkg-config order.
+fn linkGtkBlueprintMingwImportLibs(
+    b: *std.Build,
+    exe: *std.Build.Step.Compile,
+    mingw_prefix: []const u8,
+) !void {
+    const result = try std.process.Child.run(.{
+        .allocator = b.allocator,
+        .argv = &[_][]const u8{
+            "pkg-config",
+            "--static",
+            "--libs-only-L",
+            "--libs-only-l",
+            "gtk4",
+            "libadwaita-1",
+        },
+        .max_output_bytes = 1024 * 1024,
+    });
+    defer b.allocator.free(result.stdout);
+    defer b.allocator.free(result.stderr);
+    if (result.term != .Exited or result.term.Exited != 0) return error.PkgConfigFailed;
+
+    const default_ldir = b.fmt("{s}/lib", .{mingw_prefix});
+    var current_ldir: []const u8 = default_ldir;
+
+    var it = std.mem.tokenizeAny(u8, std.mem.trim(u8, result.stdout, " \t\r\n"), " \t\r\n");
+    while (it.next()) |tok| {
+        if (std.mem.startsWith(u8, tok, "-L")) {
+            if (tok.len > 2) {
+                current_ldir = tok[2..];
+                exe.addLibraryPath(.{ .cwd_relative = b.fmt("{s}", .{current_ldir}) });
+            }
+        } else if (std.mem.startsWith(u8, tok, "-l")) {
+            if (tok.len <= 2) continue;
+            const libname = tok[2..];
+            if (std.mem.eql(u8, libname, "pthread")) continue;
+
+            if (mingwTryAddImportLibObject(b, exe, current_ldir, libname)) {
+                continue;
+            }
+
+            const static_candidates = [_][]const u8{
+                b.fmt("{s}/{s}", .{ current_ldir, b.fmt("lib{s}.a", .{libname}) }),
+                b.fmt("{s}/{s}", .{ current_ldir, b.fmt("{s}.a", .{libname}) }),
+            };
+            for (static_candidates) |static_a| {
+                if (std.fs.accessAbsolute(static_a, .{})) {
+                    exe.addObjectFile(.{ .cwd_relative = static_a });
+                    break;
+                } else |_| {}
+            }
+        }
+    }
+}
+
 /// Creates the resources that can be prebuilt for our dist build.
 pub fn gtkNgDistResources(
     b: *std.Build,
-) struct {
+) !struct {
     resources_c: DistResource,
     resources_h: DistResource,
 } {
@@ -806,8 +1124,23 @@ pub fn gtkNgDistResources(
             }),
         });
         blueprint_exe.linkLibC();
-        blueprint_exe.linkSystemLibrary2("gtk4", dynamic_link_opts);
-        blueprint_exe.linkSystemLibrary2("libadwaita-1", dynamic_link_opts);
+        if (builtin.os.tag == .windows) {
+            if (std.process.getEnvVarOwned(b.allocator, "MINGW_PREFIX")) |mp| {
+                defer b.allocator.free(mp);
+                const lib_path = b.fmt("{s}/lib", .{mp});
+                blueprint_exe.addLibraryPath(.{ .cwd_relative = lib_path });
+                const inc_path = b.fmt("{s}/include", .{mp});
+                blueprint_exe.addIncludePath(.{ .cwd_relative = inc_path });
+                try addGtkBlueprintPkgConfigIncludePaths(b, blueprint_exe);
+                try linkGtkBlueprintMingwImportLibs(b, blueprint_exe, mp);
+            } else |_| {
+                blueprint_exe.linkSystemLibrary2("gtk4", dynamic_link_opts);
+                blueprint_exe.linkSystemLibrary2("libadwaita-1", dynamic_link_opts);
+            }
+        } else {
+            blueprint_exe.linkSystemLibrary2("gtk4", dynamic_link_opts);
+            blueprint_exe.linkSystemLibrary2("libadwaita-1", dynamic_link_opts);
+        }
 
         for (gresource.blueprints) |bp| {
             const blueprint_run = b.addRunArtifact(blueprint_exe);

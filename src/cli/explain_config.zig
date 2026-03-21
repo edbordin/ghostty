@@ -72,7 +72,7 @@ pub fn run(alloc: Allocator) !u8 {
         try stderr_writer.interface.writeAll("Usage: ghostty +explain-config <option>\n");
         try stderr_writer.interface.writeAll("       ghostty +explain-config --option=<option>\n");
         try stderr_writer.interface.writeAll("       ghostty +explain-config --keybind=<action>\n");
-        try stderr_writer.end();
+        try stderr_writer.interface.flush();
         return 1;
     };
 
@@ -95,11 +95,11 @@ pub fn run(alloc: Allocator) !u8 {
         try writer.writeAll("Unknown: '");
         try writer.writeAll(name);
         try writer.writeAll("'.\n");
-        try stdout_writer.end();
+        try stdout_writer.interface.flush();
         return 1;
     }
 
-    try stdout_writer.end();
+    try stdout_writer.interface.flush();
     return 0;
 }
 

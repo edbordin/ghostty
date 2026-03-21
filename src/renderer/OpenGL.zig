@@ -129,6 +129,31 @@ fn glDebugMessageCallback(
     });
 }
 
+fn glString(name: gl.c.GLenum) ?[]const u8 {
+    const ptr = gl.glad.context.GetString.?(name) orelse return null;
+    const z: [*:0]const u8 = @ptrCast(ptr);
+    return std.mem.span(z);
+}
+
+fn likelySoftwareRenderer(vendor: []const u8, renderer: []const u8) bool {
+    const needles = [_][]const u8{
+        "llvmpipe",
+        "softpipe",
+        "swrast",
+        "software",
+        "gdi generic",
+        "microsoft basic render",
+        "warp",
+    };
+
+    inline for (needles) |needle| {
+        if (std.ascii.indexOfIgnoreCase(vendor, needle) != null) return true;
+        if (std.ascii.indexOfIgnoreCase(renderer, needle) != null) return true;
+    }
+
+    return false;
+}
+
 /// Prepares the provided GL context, loading it with glad.
 fn prepareContext(getProcAddress: anytype) !void {
     const version = try gl.glad.load(getProcAddress);
@@ -136,6 +161,21 @@ fn prepareContext(getProcAddress: anytype) !void {
     const minor = gl.glad.versionMinor(@intCast(version));
     errdefer gl.glad.unload();
     log.info("loaded OpenGL {}.{}", .{ major, minor });
+
+    const vendor = glString(gl.c.GL_VENDOR) orelse "unknown";
+    const renderer = glString(gl.c.GL_RENDERER) orelse "unknown";
+    const gl_version = glString(gl.c.GL_VERSION) orelse "unknown";
+    const glsl_version = glString(gl.c.GL_SHADING_LANGUAGE_VERSION) orelse "unknown";
+    log.info(
+        "OpenGL driver vendor={s} renderer={s} version={s} glsl={s}",
+        .{ vendor, renderer, gl_version, glsl_version },
+    );
+    if (likelySoftwareRenderer(vendor, renderer)) {
+        log.warn(
+            "OpenGL appears to be software-rendered (vendor={s}, renderer={s})",
+            .{ vendor, renderer },
+        );
+    }
 
     // Need to check version before trying to enable it
     if (major < MIN_VERSION_MAJOR or

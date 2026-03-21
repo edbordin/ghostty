@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 const log = std.log.scoped(.gtk_pre_exec);
 
@@ -29,6 +30,10 @@ pub const PreExecInfo = struct {
 /// If we are configured to hard fail, log an error message and return an error
 /// code if we don't detect the move in time.
 pub fn preExec(cmd: *Command) ?u8 {
+    // Cgroup / systemd scope coordination is Linux-only (e.g. experimental
+    // `-Dapp-runtime=gtk` on Windows skips this path).
+    if (comptime builtin.target.os.tag != .linux) return null;
+
     switch (cmd.rt_pre_exec_info.linux_cgroup) {
         .always => {},
         .never => return null,
