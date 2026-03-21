@@ -198,7 +198,7 @@ if [[ ! -f "$REPO_ROOT/build.zig.zon" ]]; then
 fi
 
 if ! command -v zig >/dev/null 2>&1; then
-  echo "error: zig not on PATH. Run ./msys2/ensure-zig.sh and export PATH as printed." >&2
+  echo "error: zig not on PATH. Bootstrap once with ./msys2/bootstrap-pkgs.sh, then ensure zig is on PATH." >&2
   exit 1
 fi
 
