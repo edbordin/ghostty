@@ -9,10 +9,10 @@
 //!       for these characters, only the loose specification of
 //!       the character set in the pull request descriptions.
 //!
-//! ï— ï—‘ ï—’ ï—“ ï—” ï—• ï—– ï—— ï—˜ ï—™ ï—š ï—› ï—œ ï— ï—ž ï—Ÿ
-//! ï—  ï—¡ ï—¢ ï—£ ï—¤ ï—¥ ï—¦ ï—§ ï—¨ ï—© ï—ª ï—« ï—¬ ï—­ ï—® ï—¯
-//! ï—° ï—± ï—² ï—³ ï—´ ï—µ ï—¶ ï—· ï—¸ ï—¹ ï—º ï—» ï—¼ ï—½ ï—¾ ï—¿
-//! ï˜€ ï˜ ï˜‚ ï˜ƒ ï˜„ ï˜… ï˜† ï˜‡ ï˜ˆ ï˜‰ ï˜Š ï˜‹ ï˜Œ ï˜
+//!                
+//!                
+//!                
+//!              
 //!
 
 const std = @import("std");
@@ -51,296 +51,296 @@ pub fn drawF5D0_F60D(
     _ = height;
 
     switch (cp) {
-        // 'ï—'
+        // ''
         0x0f5d0 => hlineMiddle(metrics, canvas, .light),
-        // 'ï—‘'
+        // ''
         0x0f5d1 => vlineMiddle(metrics, canvas, .light),
-        // 'ï—’'
+        // ''
         0x0f5d2 => fadingLine(metrics, canvas, .right, .light),
-        // 'ï—“'
+        // ''
         0x0f5d3 => fadingLine(metrics, canvas, .left, .light),
-        // 'ï—”'
+        // ''
         0x0f5d4 => fadingLine(metrics, canvas, .bottom, .light),
-        // 'ï—•'
+        // ''
         0x0f5d5 => fadingLine(metrics, canvas, .top, .light),
-        // 'ï—–'
+        // ''
         0x0f5d6 => try arc(metrics, canvas, .br, .light),
-        // 'ï——'
+        // ''
         0x0f5d7 => try arc(metrics, canvas, .bl, .light),
-        // 'ï—˜'
+        // ''
         0x0f5d8 => try arc(metrics, canvas, .tr, .light),
-        // 'ï—™'
+        // ''
         0x0f5d9 => try arc(metrics, canvas, .tl, .light),
-        // 'ï—š'
+        // ''
         0x0f5da => {
             vlineMiddle(metrics, canvas, .light);
             try arc(metrics, canvas, .tr, .light);
         },
-        // 'ï—›'
+        // ''
         0x0f5db => {
             vlineMiddle(metrics, canvas, .light);
             try arc(metrics, canvas, .br, .light);
         },
-        // 'ï—œ'
+        // ''
         0x0f5dc => {
             try arc(metrics, canvas, .tr, .light);
             try arc(metrics, canvas, .br, .light);
         },
-        // 'ï—'
+        // ''
         0x0f5dd => {
             vlineMiddle(metrics, canvas, .light);
             try arc(metrics, canvas, .tl, .light);
         },
-        // 'ï—ž'
+        // ''
         0x0f5de => {
             vlineMiddle(metrics, canvas, .light);
             try arc(metrics, canvas, .bl, .light);
         },
-        // 'ï—Ÿ'
+        // ''
         0x0f5df => {
             try arc(metrics, canvas, .tl, .light);
             try arc(metrics, canvas, .bl, .light);
         },
 
-        // 'ï— '
+        // ''
         0x0f5e0 => {
             try arc(metrics, canvas, .bl, .light);
             hlineMiddle(metrics, canvas, .light);
         },
-        // 'ï—¡'
+        // ''
         0x0f5e1 => {
             try arc(metrics, canvas, .br, .light);
             hlineMiddle(metrics, canvas, .light);
         },
-        // 'ï—¢'
+        // ''
         0x0f5e2 => {
             try arc(metrics, canvas, .br, .light);
             try arc(metrics, canvas, .bl, .light);
         },
-        // 'ï—£'
+        // ''
         0x0f5e3 => {
             try arc(metrics, canvas, .tl, .light);
             hlineMiddle(metrics, canvas, .light);
         },
-        // 'ï—¤'
+        // ''
         0x0f5e4 => {
             try arc(metrics, canvas, .tr, .light);
             hlineMiddle(metrics, canvas, .light);
         },
-        // 'ï—¥'
+        // ''
         0x0f5e5 => {
             try arc(metrics, canvas, .tr, .light);
             try arc(metrics, canvas, .tl, .light);
         },
-        // 'ï—¦'
+        // ''
         0x0f5e6 => {
             vlineMiddle(metrics, canvas, .light);
             try arc(metrics, canvas, .tl, .light);
             try arc(metrics, canvas, .tr, .light);
         },
-        // 'ï—§'
+        // ''
         0x0f5e7 => {
             vlineMiddle(metrics, canvas, .light);
             try arc(metrics, canvas, .bl, .light);
             try arc(metrics, canvas, .br, .light);
         },
-        // 'ï—¨'
+        // ''
         0x0f5e8 => {
             hlineMiddle(metrics, canvas, .light);
             try arc(metrics, canvas, .bl, .light);
             try arc(metrics, canvas, .tl, .light);
         },
-        // 'ï—©'
+        // ''
         0x0f5e9 => {
             hlineMiddle(metrics, canvas, .light);
             try arc(metrics, canvas, .tr, .light);
             try arc(metrics, canvas, .br, .light);
         },
-        // 'ï—ª'
+        // ''
         0x0f5ea => {
             vlineMiddle(metrics, canvas, .light);
             try arc(metrics, canvas, .tl, .light);
             try arc(metrics, canvas, .br, .light);
         },
-        // 'ï—«'
+        // ''
         0x0f5eb => {
             vlineMiddle(metrics, canvas, .light);
             try arc(metrics, canvas, .tr, .light);
             try arc(metrics, canvas, .bl, .light);
         },
-        // 'ï—¬'
+        // ''
         0x0f5ec => {
             hlineMiddle(metrics, canvas, .light);
             try arc(metrics, canvas, .tl, .light);
             try arc(metrics, canvas, .br, .light);
         },
-        // 'ï—­'
+        // ''
         0x0f5ed => {
             hlineMiddle(metrics, canvas, .light);
             try arc(metrics, canvas, .tr, .light);
             try arc(metrics, canvas, .bl, .light);
         },
-        // 'ï—®'
+        // ''
         0x0f5ee => branchNode(metrics, canvas, .{ .filled = true }, .light),
-        // 'ï—¯'
+        // ''
         0x0f5ef => branchNode(metrics, canvas, .{}, .light),
 
-        // 'ï—°'
+        // ''
         0x0f5f0 => branchNode(metrics, canvas, .{
             .right = true,
             .filled = true,
         }, .light),
-        // 'ï—±'
+        // ''
         0x0f5f1 => branchNode(metrics, canvas, .{
             .right = true,
         }, .light),
-        // 'ï—²'
+        // ''
         0x0f5f2 => branchNode(metrics, canvas, .{
             .left = true,
             .filled = true,
         }, .light),
-        // 'ï—³'
+        // ''
         0x0f5f3 => branchNode(metrics, canvas, .{
             .left = true,
         }, .light),
-        // 'ï—´'
+        // ''
         0x0f5f4 => branchNode(metrics, canvas, .{
             .left = true,
             .right = true,
             .filled = true,
         }, .light),
-        // 'ï—µ'
+        // ''
         0x0f5f5 => branchNode(metrics, canvas, .{
             .left = true,
             .right = true,
         }, .light),
-        // 'ï—¶'
+        // ''
         0x0f5f6 => branchNode(metrics, canvas, .{
             .down = true,
             .filled = true,
         }, .light),
-        // 'ï—·'
+        // ''
         0x0f5f7 => branchNode(metrics, canvas, .{
             .down = true,
         }, .light),
-        // 'ï—¸'
+        // ''
         0x0f5f8 => branchNode(metrics, canvas, .{
             .up = true,
             .filled = true,
         }, .light),
-        // 'ï—¹'
+        // ''
         0x0f5f9 => branchNode(metrics, canvas, .{
             .up = true,
         }, .light),
-        // 'ï—º'
+        // ''
         0x0f5fa => branchNode(metrics, canvas, .{
             .up = true,
             .down = true,
             .filled = true,
         }, .light),
-        // 'ï—»'
+        // ''
         0x0f5fb => branchNode(metrics, canvas, .{
             .up = true,
             .down = true,
         }, .light),
-        // 'ï—¼'
+        // ''
         0x0f5fc => branchNode(metrics, canvas, .{
             .right = true,
             .down = true,
             .filled = true,
         }, .light),
-        // 'ï—½'
+        // ''
         0x0f5fd => branchNode(metrics, canvas, .{
             .right = true,
             .down = true,
         }, .light),
-        // 'ï—¾'
+        // ''
         0x0f5fe => branchNode(metrics, canvas, .{
             .left = true,
             .down = true,
             .filled = true,
         }, .light),
-        // 'ï—¿'
+        // ''
         0x0f5ff => branchNode(metrics, canvas, .{
             .left = true,
             .down = true,
         }, .light),
 
-        // 'ï˜€'
+        // ''
         0x0f600 => branchNode(metrics, canvas, .{
             .up = true,
             .right = true,
             .filled = true,
         }, .light),
-        // 'ï˜'
+        // ''
         0x0f601 => branchNode(metrics, canvas, .{
             .up = true,
             .right = true,
         }, .light),
-        // 'ï˜‚'
+        // ''
         0x0f602 => branchNode(metrics, canvas, .{
             .up = true,
             .left = true,
             .filled = true,
         }, .light),
-        // 'ï˜ƒ'
+        // ''
         0x0f603 => branchNode(metrics, canvas, .{
             .up = true,
             .left = true,
         }, .light),
-        // 'ï˜„'
+        // ''
         0x0f604 => branchNode(metrics, canvas, .{
             .up = true,
             .down = true,
             .right = true,
             .filled = true,
         }, .light),
-        // 'ï˜…'
+        // ''
         0x0f605 => branchNode(metrics, canvas, .{
             .up = true,
             .down = true,
             .right = true,
         }, .light),
-        // 'ï˜†'
+        // ''
         0x0f606 => branchNode(metrics, canvas, .{
             .up = true,
             .down = true,
             .left = true,
             .filled = true,
         }, .light),
-        // 'ï˜‡'
+        // ''
         0x0f607 => branchNode(metrics, canvas, .{
             .up = true,
             .down = true,
             .left = true,
         }, .light),
-        // 'ï˜ˆ'
+        // ''
         0x0f608 => branchNode(metrics, canvas, .{
             .down = true,
             .left = true,
             .right = true,
             .filled = true,
         }, .light),
-        // 'ï˜‰'
+        // ''
         0x0f609 => branchNode(metrics, canvas, .{
             .down = true,
             .left = true,
             .right = true,
         }, .light),
-        // 'ï˜Š'
+        // ''
         0x0f60a => branchNode(metrics, canvas, .{
             .up = true,
             .left = true,
             .right = true,
             .filled = true,
         }, .light),
-        // 'ï˜‹'
+        // ''
         0x0f60b => branchNode(metrics, canvas, .{
             .up = true,
             .left = true,
             .right = true,
         }, .light),
-        // 'ï˜Œ'
+        // ''
         0x0f60c => branchNode(metrics, canvas, .{
             .up = true,
             .down = true,
@@ -348,7 +348,7 @@ pub fn drawF5D0_F60D(
             .right = true,
             .filled = true,
         }, .light),
-        // 'ï˜'
+        // ''
         0x0f60d => branchNode(metrics, canvas, .{
             .up = true,
             .down = true,
