@@ -19,6 +19,26 @@ static int compare_frames(const struct dirent **a, const struct dirent **b) {
     return strcmp((*a)->d_name, (*b)->d_name);
 }
 
+typedef struct {
+    char *name;
+} frame_entry;
+
+static int compare_frame_entries(const void *a, const void *b) {
+    const frame_entry *fa = (const frame_entry *)a;
+    const frame_entry *fb = (const frame_entry *)b;
+    return strcmp(fa->name, fb->name);
+}
+
+static char *dup_string(const char *s) {
+    size_t len = strlen(s);
+    char *out = (char *)malloc(len + 1);
+    if (!out) {
+        return NULL;
+    }
+    memcpy(out, s, len + 1);
+    return out;
+}
+
 static char *read_file(const char *path, size_t *out_size) {
     FILE *f = fopen(path, "rb");
     if (!f) {
@@ -54,25 +74,64 @@ int main(int argc, char **argv) {
     const char *frames_dir = argv[1];
     const char *output_file = argv[2];
 
-    struct dirent **namelist;
-    int n = scandir(frames_dir, &namelist, filter_frames, compare_frames);
-    if (n < 0) {
+    DIR *dir = opendir(frames_dir);
+    if (!dir) {
         fprintf(stderr, "Failed to scan directory %s: %s\n", frames_dir, strerror(errno));
         return 1;
     }
 
-    if (n == 0) {
+    size_t count = 0;
+    size_t capacity = 16;
+    frame_entry *entries = (frame_entry *)calloc(capacity, sizeof(frame_entry));
+    if (!entries) {
+        fprintf(stderr, "Failed to allocate frame list\n");
+        closedir(dir);
+        return 1;
+    }
+
+    struct dirent *entry = NULL;
+    while ((entry = readdir(dir)) != NULL) {
+        if (!filter_frames(entry)) {
+            continue;
+        }
+
+        if (count == capacity) {
+            size_t new_capacity = capacity * 2;
+            frame_entry *grown = (frame_entry *)realloc(entries, new_capacity * sizeof(frame_entry));
+            if (!grown) {
+                fprintf(stderr, "Failed to grow frame list\n");
+                closedir(dir);
+                return 1;
+            }
+            entries = grown;
+            capacity = new_capacity;
+        }
+
+        entries[count].name = dup_string(entry->d_name);
+        if (!entries[count].name) {
+            fprintf(stderr, "Failed to copy frame name\n");
+            closedir(dir);
+            return 1;
+        }
+        count++;
+    }
+
+    closedir(dir);
+
+    if (count == 0) {
         fprintf(stderr, "No frame files found in %s\n", frames_dir);
         return 1;
     }
 
-    size_t total_size = 0;
-    char **frame_contents = calloc(n, sizeof(char*));
-    size_t *frame_sizes = calloc(n, sizeof(size_t));
+    qsort(entries, count, sizeof(frame_entry), compare_frame_entries);
 
-    for (int i = 0; i < n; i++) {
+    size_t total_size = 0;
+    char **frame_contents = calloc(count, sizeof(char*));
+    size_t *frame_sizes = calloc(count, sizeof(size_t));
+
+    for (size_t i = 0; i < count; i++) {
         char path[4096];
-        snprintf(path, sizeof(path), "%s/%s", frames_dir, namelist[i]->d_name);
+        snprintf(path, sizeof(path), "%s/%s", frames_dir, entries[i].name);
         
         frame_contents[i] = read_file(path, &frame_sizes[i]);
         if (!frame_contents[i]) {
@@ -80,7 +139,7 @@ int main(int argc, char **argv) {
         }
         
         total_size += frame_sizes[i];
-        if (i < n - 1) total_size++;
+        if (i < count - 1) total_size++;
     }
 
     char *joined = malloc(total_size);
@@ -90,10 +149,10 @@ int main(int argc, char **argv) {
     }
 
     size_t offset = 0;
-    for (int i = 0; i < n; i++) {
+    for (size_t i = 0; i < count; i++) {
         memcpy(joined + offset, frame_contents[i], frame_sizes[i]);
         offset += frame_sizes[i];
-        if (i < n - 1) {
+        if (i < count - 1) {
             joined[offset++] = SEPARATOR;
         }
     }
@@ -140,6 +199,16 @@ int main(int argc, char **argv) {
     }
 
     fclose(out);
+
+    for (size_t i = 0; i < count; i++) {
+        free(entries[i].name);
+        free(frame_contents[i]);
+    }
+    free(entries);
+    free(frame_contents);
+    free(frame_sizes);
+    free(joined);
+    free(compressed);
 
     return 0;
 }
