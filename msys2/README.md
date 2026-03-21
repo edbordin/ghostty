@@ -1,5 +1,9 @@
 # Building Ghostty GTK on Windows with MSYS2
 
+> Note: this build path is purely for development purposes and will likely
+> never be an official Ghostty configuration. As such, the build scripts have
+> been left as AI slop.
+
 1. Install MSYS2 first:
    https://www.msys2.org/
 
