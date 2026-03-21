@@ -13,7 +13,7 @@
 #   --repo PATH            Explicit Ghostty repo root for Zig detection
 #   -h, --help             Show help
 #
-# This script must run from MINGW64, UCRT64, or CLANG64 (not plain MSYS).
+# This script must run from UCRT64 (not plain MSYS, MINGW64, or CLANG64).
 
 set -euo pipefail
 
@@ -67,17 +67,20 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ "$do_pkgs" -eq 1 ]]; then
-  case "${MSYSTEM:-}" in
-  MINGW64 | UCRT64 | CLANG64) ;;
-  *)
-    echo "error: run this script from a MinGW shell (MINGW64, UCRT64, or CLANG64)." >&2
+  if [[ "${MSYSTEM:-}" != "UCRT64" ]]; then
+    echo "error: run this script from the MSYS2 UCRT64 shell." >&2
     echo "  Current MSYSTEM=${MSYSTEM:-<unset>}" >&2
+    echo "  Tip: launch ucrt64.exe, then rerun this script." >&2
     exit 1
-    ;;
-  esac
+  fi
 
   if [[ -z "${MINGW_PACKAGE_PREFIX:-}" ]]; then
     echo "error: MINGW_PACKAGE_PREFIX is unset; your MSYS2 environment may be broken." >&2
+    exit 1
+  fi
+  if [[ "${MINGW_PACKAGE_PREFIX}" != "mingw-w64-ucrt-x86_64" ]]; then
+    echo "error: expected UCRT64 package prefix, got: ${MINGW_PACKAGE_PREFIX}" >&2
+    echo "  Tip: launch ucrt64.exe, then rerun this script." >&2
     exit 1
   fi
 

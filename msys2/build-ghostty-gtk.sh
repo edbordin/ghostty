@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Experimental: build Ghostty on Windows (MinGW) with GTK.
-# Tip: use UCRT64 (ucrt64.exe) when possible — fewer CRT/link quirks than MINGW64 for GTK + Zig.
+# Experimental: build Ghostty on Windows (UCRT64) with GTK.
 #
 # Usage from Ghostty repo root:
 #   ./msys2/build-ghostty-gtk.sh [zig build args…]
@@ -12,54 +11,34 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-case "${MSYSTEM:-}" in
-MINGW64 | UCRT64 | CLANG64) ;;
-*)
-  echo "error: use MINGW64, UCRT64, or CLANG64 shell." >&2
+if [[ "${MSYSTEM:-}" != "UCRT64" ]]; then
+  echo "error: use the MSYS2 UCRT64 shell (ucrt64.exe)." >&2
+  echo "  Current MSYSTEM=${MSYSTEM:-<unset>}" >&2
   exit 1
-  ;;
-esac
+fi
 
 # Zig uses pkg-config to resolve native libs. If the wrong pkg-config is first
 # on PATH (e.g. MSYS /usr/bin), you get "searched paths: none".
 if [[ -z "${MINGW_PREFIX:-}" ]]; then
-  # Prefer the explicit Git SDK sysroot layout when present.
-  # Example: C:\git-sdk-64\mingw64 -> /c/git-sdk-64/mingw64
-  case "${MSYSTEM:-}" in
-  UCRT64)
-    if [[ -d "/c/git-sdk-64/ucrt64" ]]; then
-      MINGW_PREFIX="/c/git-sdk-64/ucrt64"
-    else
-      MINGW_PREFIX="/ucrt64"
-    fi
-    ;;
-  MINGW64)
-    if [[ -d "/c/git-sdk-64/mingw64" ]]; then
-      MINGW_PREFIX="/c/git-sdk-64/mingw64"
-    else
-      MINGW_PREFIX="/mingw64"
-    fi
-    ;;
-  CLANG64)
-    if [[ -d "/c/git-sdk-64/clang64" ]]; then
-      MINGW_PREFIX="/c/git-sdk-64/clang64"
-    else
-      MINGW_PREFIX="/clang64"
-    fi
-    ;;
-  esac
+  # Prefer shell-provided MSYSTEM_PREFIX when available.
+  if [[ -n "${MSYSTEM_PREFIX:-}" ]]; then
+    MINGW_PREFIX="${MSYSTEM_PREFIX}"
+  else
+    MINGW_PREFIX="/ucrt64"
+  fi
 fi
 
-# In MSYS shells MINGW_PREFIX is often preset to /mingw64|/ucrt64|/clang64.
-# Canonicalize to explicit Git SDK path when available so downstream Windows-native
-# tools (including Zig package build scripts) can reliably derive Windows paths.
-case "${MINGW_PREFIX}" in
-/mingw64 | /ucrt64 | /clang64)
-  if [[ -d "/c/git-sdk-64${MINGW_PREFIX}" ]]; then
-    MINGW_PREFIX="/c/git-sdk-64${MINGW_PREFIX}"
-  fi
-  ;;
-esac
+if [[ -n "${MINGW_PACKAGE_PREFIX:-}" && "${MINGW_PACKAGE_PREFIX}" != "mingw-w64-ucrt-x86_64" ]]; then
+  echo "error: expected UCRT64 package prefix, got: ${MINGW_PACKAGE_PREFIX}" >&2
+  echo "  launch ucrt64.exe and rerun, or fix your shell environment." >&2
+  exit 1
+fi
+
+if [[ ! -d "${MINGW_PREFIX}" ]]; then
+  echo "error: MINGW_PREFIX does not exist: ${MINGW_PREFIX}" >&2
+  echo "  run from the MSYS2 UCRT64 shell, or set MINGW_PREFIX to your UCRT sysroot." >&2
+  exit 1
+fi
 # Must be exported: Zig's build reads MINGW_PREFIX for gtk_blueprint_compiler lib/include paths.
 export MINGW_PREFIX
 export PKG_CONFIG_LIBDIR="${MINGW_PREFIX}/lib/pkgconfig:${MINGW_PREFIX}/share/pkgconfig"
@@ -77,7 +56,7 @@ ensure_ghostty_blueprint_compiler() {
     return 0
   fi
   if ! command -v cygpath >/dev/null 2>&1; then
-    echo "error: cygpath not found. Use an MSYS2 or Git for Windows SDK MinGW shell, or export" >&2
+    echo "error: cygpath not found. Use an MSYS2 UCRT64 shell (or compatible Git SDK shell), or export" >&2
     echo "  GHOSTTY_BLUEPRINT_PYTHON + GHOSTTY_BLUEPRINT_SCRIPT (see HACKING.md)." >&2
     return 1
   fi

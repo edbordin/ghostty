@@ -5,6 +5,7 @@
 //! Litmus test: `src/apprt/gtk` should exist relative to the pwd.
 
 const std = @import("std");
+const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;
 
 const build_info = @import("info.zig");
@@ -265,6 +266,15 @@ fn genUi(
     , .{build_info.resource_path});
 
     for (files.items) |ui_file| {
+        const ui_file_xml = if (builtin.os.tag == .windows) blk: {
+            const normalized = try alloc.dupe(u8, ui_file);
+            for (normalized) |*c| {
+                if (c.* == '\\') c.* = '/';
+            }
+            break :blk normalized;
+        } else ui_file;
+        defer if (builtin.os.tag == .windows) alloc.free(ui_file_xml);
+
         for (blueprints) |bp| {
             const expected = try std.fmt.allocPrint(
                 alloc,
@@ -273,10 +283,19 @@ fn genUi(
             );
             defer alloc.free(expected);
             if (!pathEndsWithIgnoreSep(ui_file, expected)) continue;
-            try writer.print(
-                "    <file compressed=\"true\" preprocess=\"xml-stripblanks\" alias=\"{d}.{d}/{s}.ui\">{s}</file>\n",
-                .{ bp.major, bp.minor, bp.name, ui_file },
-            );
+            if (builtin.os.tag == .windows) {
+                // glib-compile-resources preprocessing ("xml-stripblanks") can fail on MinGW/UCRT
+                // with "Failed to read from child pipe (EOF)". Skip preprocessing on Windows.
+                try writer.print(
+                    "    <file compressed=\"true\" alias=\"{d}.{d}/{s}.ui\">{s}</file>\n",
+                    .{ bp.major, bp.minor, bp.name, ui_file_xml },
+                );
+            } else {
+                try writer.print(
+                    "    <file compressed=\"true\" preprocess=\"xml-stripblanks\" alias=\"{d}.{d}/{s}.ui\">{s}</file>\n",
+                    .{ bp.major, bp.minor, bp.name, ui_file_xml },
+                );
+            }
             break;
         } else {
             // The for loop never broke which means it didn't find
