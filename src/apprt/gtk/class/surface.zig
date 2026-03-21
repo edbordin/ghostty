@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const assert = @import("../../../quirks.zig").inlineAssert;
 const Allocator = std.mem.Allocator;
 const adw = @import("adw");
@@ -695,6 +696,11 @@ pub const Surface = extern struct {
         /// Whether primary paste (middle-click paste) is enabled.
         gtk_enable_primary_paste: bool = true,
 
+        /// Warning deduplication flags for content scale probes.
+        warned_nonpositive_widget_scale: bool = false,
+        warned_missing_xft_dpi: bool = false,
+        warned_invalid_xft_dpi: bool = false,
+
         /// True when a left mouse down was consumed purely for a focus change,
         /// and the matching left mouse release should also be suppressed.
         suppress_left_mouse_release: bool = false,
@@ -1304,7 +1310,18 @@ pub const Surface = extern struct {
                 // we will just assume we should not encode this. This handles a
                 // real scenario when ibus starts the emoji input method
                 // (super+.).
-                if (priv.im_len == 0) return true;
+                if (priv.im_len == 0) {
+                    // On Windows GTK, Ctrl combinations (notably Ctrl+C) can be
+                    // reported as IM-handled without any committed text. If we
+                    // always return here, those control sequences are dropped.
+                    // Let Ctrl-only combinations continue to key encoding.
+                    if (builtin.os.tag == .windows and
+                        gtk_mods.control_mask and
+                        !gtk_mods.alt_mask)
+                    {
+                        // fallthrough
+                    } else return true;
+                }
             }
 
             // At this point, for the sake of explanation of internal state:
@@ -1511,7 +1528,10 @@ pub const Surface = extern struct {
             // can support fractional scaling.
             const scale = widget.getScaleFactor();
             if (scale <= 0) {
-                log.warn("gtk_widget_get_scale_factor returned a non-positive number: {}", .{scale});
+                if (!priv.warned_nonpositive_widget_scale) {
+                    priv.warned_nonpositive_widget_scale = true;
+                    log.warn("gtk_widget_get_scale_factor returned a non-positive number: {}", .{scale});
+                }
                 break :scale 1.0;
             }
             break :scale @floatFromInt(scale);
@@ -1523,7 +1543,10 @@ pub const Surface = extern struct {
             // gtk-xft-dpi is font DPI multiplied by 1024. See
             // https://docs.gtk.org/gtk4/property.Settings.gtk-xft-dpi.html
             const gtk_xft_dpi = gsettings.get(.@"gtk-xft-dpi") orelse {
-                log.warn("gtk-xft-dpi was not set, using default value", .{});
+                if (!priv.warned_missing_xft_dpi) {
+                    priv.warned_missing_xft_dpi = true;
+                    log.warn("gtk-xft-dpi was not set, using default value", .{});
+                }
                 break :xft_scale 1.0;
             };
 
@@ -1532,7 +1555,10 @@ pub const Surface = extern struct {
             // https://gitlab.gnome.org/GNOME/libadwaita/-/commit/a7738a4d269bfdf4d8d5429ca73ccdd9b2450421
             // https://gitlab.gnome.org/GNOME/libadwaita/-/commit/9759d3fd81129608dd78116001928f2aed974ead
             if (gtk_xft_dpi <= 0) {
-                log.warn("gtk-xft-dpi has invalid value ({}), using default", .{gtk_xft_dpi});
+                if (!priv.warned_invalid_xft_dpi) {
+                    priv.warned_invalid_xft_dpi = true;
+                    log.warn("gtk-xft-dpi has invalid value ({}), using default", .{gtk_xft_dpi});
+                }
                 break :xft_scale 1.0;
             }
 

@@ -635,6 +635,15 @@ pub const StreamHandler = struct {
         // terminal locks because it is only called from process() which
         // grabs the lock.
 
+        // On Windows bootstrap builds, some programs toggle synchronized
+        // output in ways that can cause visible input echo stalls due to
+        // deferred rendering. Until backend support is tightened up, we
+        // force this mode off on Windows.
+        if (builtin.os.tag == .windows and mode == .synchronized_output) {
+            self.terminal.modes.set(.synchronized_output, false);
+            return;
+        }
+
         // If we are setting cursor blinking, we ignore it if we have
         // a default cursor blink setting set. This is a really weird
         // behavior so this comment will go deep into trying to explain it.

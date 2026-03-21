@@ -236,6 +236,13 @@ pub fn focusGained(
     assert(td.backend == .exec);
     const execdata = &td.backend.exec;
 
+    // Termios polling is currently unsupported on Windows. Focus events should
+    // not attempt to start the timer path.
+    if (comptime builtin.os.tag == .windows) {
+        execdata.termios_timer_running = false;
+        return;
+    }
+
     if (!focused) {
         // Flag the timer to end on the next iteration. This is
         // a lot cheaper than doing full timer cancellation.
@@ -321,12 +328,10 @@ fn termiosTimer(
 ) xev.CallbackAction {
     // log.debug("termios timer fired", .{});
 
-    // This should never happen because we guard starting our
-    // timer on windows but we want this assertion to fire if
-    // we ever do start the timer on windows.
-    // TODO: support on windows
+    // Termios polling is not implemented on Windows yet; disarm instead of
+    // crashing if this callback is ever invoked.
     if (comptime builtin.os.tag == .windows) {
-        @panic("termios timer not implemented on Windows");
+        return .disarm;
     }
 
     _ = r catch |err| switch (err) {
