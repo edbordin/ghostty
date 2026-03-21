@@ -237,6 +237,13 @@ pub fn focusGained(
     assert(td.backend == .exec);
     const execdata = &td.backend.exec;
 
+    // Termios polling is currently unsupported on Windows. Focus events should
+    // not attempt to start the timer path.
+    if (comptime builtin.os.tag == .windows) {
+        execdata.termios_timer_running = false;
+        return;
+    }
+
     if (!focused) {
         // Flag the timer to end on the next iteration. This is
         // a lot cheaper than doing full timer cancellation.

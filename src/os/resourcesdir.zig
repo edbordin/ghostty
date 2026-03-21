@@ -38,6 +38,15 @@ pub const ResourcesDir = struct {
 /// This is highly Ghostty-specific and can likely be generalized at
 /// some point but we can cross that bridge if we ever need to.
 pub fn resourcesDir(alloc: Allocator) !ResourcesDir {
+    const trace = struct {
+        fn emit(msg: []const u8) void {
+            if (comptime builtin.target.os.tag == .windows) {
+                std.debug.print("resourcesDir stage: {s}\n", .{msg});
+            }
+        }
+    }.emit;
+    trace("start");
+
     // Use the GHOSTTY_RESOURCES_DIR environment variable in release builds.
     //
     // In debug builds we try using terminfo detection first instead, since
@@ -48,6 +57,7 @@ pub fn resourcesDir(alloc: Allocator) !ResourcesDir {
     // Note: we ALWAYS want to allocate here because the result is always
     // freed, do not try to use internal_os.getenv or posix getenv.
     if (comptime builtin.mode != .Debug) {
+        trace("check env in release mode");
         if (std.process.getEnvVarOwned(alloc, "GHOSTTY_RESOURCES_DIR")) |dir| {
             if (dir.len > 0) return .{ .app_path = dir };
         } else |err| switch (err) {
@@ -66,13 +76,22 @@ pub fn resourcesDir(alloc: Allocator) !ResourcesDir {
     };
 
     // Get the path to our running binary
+    trace("before selfExePath");
     var exe_buf: [std.fs.max_path_bytes]u8 = undefined;
     var exe: []const u8 = std.fs.selfExePath(&exe_buf) catch return .{};
+    trace("after selfExePath");
 
     // We have an exe path! Climb the tree looking for the terminfo
     // bundle as we expect it.
+    trace("before climb");
     var dir_buf: [std.fs.max_path_bytes]u8 = undefined;
+    var climb_iters: usize = 0;
     while (std.fs.path.dirname(exe)) |dir| {
+        climb_iters += 1;
+        if (builtin.target.os.tag == .windows and climb_iters > 4096) {
+            trace("climb iteration guard hit");
+            break;
+        }
         exe = dir;
 
         // On MacOS, we look for the app bundle path.
@@ -102,6 +121,7 @@ pub fn resourcesDir(alloc: Allocator) !ResourcesDir {
     // If terminfo detection failed in debug builds (somehow),
     // fallback and use the provided resources dir.
     if (comptime builtin.mode == .Debug) {
+        trace("debug fallback env check");
         if (std.process.getEnvVarOwned(alloc, "GHOSTTY_RESOURCES_DIR")) |dir| {
             if (dir.len > 0) return .{ .app_path = dir };
         } else |err| switch (err) {
@@ -110,6 +130,7 @@ pub fn resourcesDir(alloc: Allocator) !ResourcesDir {
         }
     }
 
+    trace("return empty");
     return .{};
 }
 

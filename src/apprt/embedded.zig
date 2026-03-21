@@ -22,6 +22,31 @@ const configpkg = @import("../config.zig");
 const Config = configpkg.Config;
 
 const log = std.log.scoped(.embedded_window);
+const event_log = std.log.scoped(.embedded_events);
+
+fn embeddedEventsTraceEnabled() bool {
+    if (!builtin.link_libc) return true;
+
+    const ptr = std.c.getenv("GHOSTTY_TRACE_EMBEDDED_EVENTS") orelse return true;
+    const value = std.mem.span(ptr);
+    if (value.len == 0) return true;
+
+    if (std.mem.eql(u8, value, "0")) return false;
+    if (std.ascii.eqlIgnoreCase(value, "false")) return false;
+    if (std.ascii.eqlIgnoreCase(value, "off")) return false;
+    if (std.ascii.eqlIgnoreCase(value, "no")) return false;
+    return true;
+}
+
+fn eventDebug(comptime format: []const u8, args: anytype) void {
+    if (!embeddedEventsTraceEnabled()) return;
+    event_log.debug(format, args);
+}
+
+fn eventInfo(comptime format: []const u8, args: anytype) void {
+    if (!embeddedEventsTraceEnabled()) return;
+    event_log.info(format, args);
+}
 
 pub const resourcesDir = internal_os.resourcesDir;
 
@@ -1441,6 +1466,7 @@ pub const CAPI = struct {
     /// Tick the event loop. This should be called whenever the "wakeup"
     /// callback is invoked for the runtime.
     export fn ghostty_app_tick(v: *App) void {
+        eventDebug("ghostty_app_tick app={*}", .{v});
         v.core_app.tick(v) catch |err| {
             log.err("error app tick err={}", .{err});
         };
@@ -1463,6 +1489,7 @@ pub const CAPI = struct {
         app: *App,
         focused: bool,
     ) void {
+        eventDebug("ghostty_app_set_focus app={*} focused={}", .{ app, focused });
         app.focusEvent(focused);
     }
 
@@ -1473,10 +1500,21 @@ pub const CAPI = struct {
         app: *App,
         event: KeyEvent,
     ) bool {
-        return app.keyEvent(.app, event.keyEvent()) catch |err| {
+        const handled = app.keyEvent(.app, event.keyEvent()) catch |err| {
             log.warn("error processing key event err={}", .{err});
             return false;
         };
+        eventInfo(
+            "ghostty_app_key app={*} action={} keycode={} mods=0x{X} handled={}",
+            .{
+                app,
+                event.action,
+                event.keycode,
+                @as(c_uint, @bitCast(event.mods)),
+                handled,
+            },
+        );
+        return handled;
     }
 
     /// Returns true if the given key event would trigger a binding
@@ -1560,10 +1598,27 @@ pub const CAPI = struct {
         app: *App,
         opts: *const apprt.Surface.Options,
     ) ?*Surface {
-        return surface_new_(app, opts) catch |err| {
+        const surface = surface_new_(app, opts) catch |err| {
             log.err("error initializing surface err={}", .{err});
             return null;
         };
+        eventDebug(
+            "ghostty_surface_new app={*} surface={*} platform_tag={} scale_factor={d:.3} font_size={d:.3}",
+            .{
+                app,
+                surface,
+                opts.platform_tag,
+                opts.scale_factor,
+                opts.font_size,
+            },
+        );
+        if (opts.platform_tag == @intFromEnum(PlatformTag.windows)) {
+            eventDebug(
+                "ghostty_surface_new windows hwnd={any}",
+                .{opts.platform.windows.hwnd},
+            );
+        }
+        return surface;
     }
 
     fn surface_new_(
@@ -1574,6 +1629,7 @@ pub const CAPI = struct {
     }
 
     export fn ghostty_surface_free(ptr: *Surface) void {
+        eventDebug("ghostty_surface_free surface={*}", .{ptr});
         ptr.app.closeSurface(ptr);
     }
 
@@ -1699,18 +1755,21 @@ pub const CAPI = struct {
 
     /// Tell the surface that it needs to schedule a render
     export fn ghostty_surface_refresh(surface: *Surface) void {
+        eventDebug("ghostty_surface_refresh surface={*}", .{surface});
         surface.refresh();
     }
 
     /// Tell the surface that it needs to schedule a render
     /// call as soon as possible (NOW if possible).
     export fn ghostty_surface_draw(surface: *Surface) void {
+        eventDebug("ghostty_surface_draw surface={*}", .{surface});
         surface.draw();
     }
 
     /// Update the size of a surface. This will trigger resize notifications
     /// to the pty and the renderer.
     export fn ghostty_surface_set_size(surface: *Surface, w: u32, h: u32) void {
+        eventDebug("ghostty_surface_set_size surface={*} w={} h={}", .{ surface, w, h });
         surface.updateSize(w, h);
     }
 
@@ -1742,16 +1801,19 @@ pub const CAPI = struct {
 
     /// Update the content scale of the surface.
     export fn ghostty_surface_set_content_scale(surface: *Surface, x: f64, y: f64) void {
+        eventDebug("ghostty_surface_set_content_scale surface={*} x={d:.3} y={d:.3}", .{ surface, x, y });
         surface.updateContentScale(x, y);
     }
 
     /// Update the focused state of a surface.
     export fn ghostty_surface_set_focus(surface: *Surface, focused: bool) void {
+        eventDebug("ghostty_surface_set_focus surface={*} focused={}", .{ surface, focused });
         surface.focusCallback(focused);
     }
 
     /// Update the occlusion state of a surface.
     export fn ghostty_surface_set_occlusion(surface: *Surface, visible: bool) void {
+        eventDebug("ghostty_surface_set_occlusion surface={*} visible={}", .{ surface, visible });
         surface.occlusionCallback(visible);
     }
 
@@ -1781,13 +1843,24 @@ pub const CAPI = struct {
         surface: *Surface,
         event: KeyEvent,
     ) bool {
-        return surface.app.keyEvent(
+        const handled = surface.app.keyEvent(
             .{ .surface = surface },
             event.keyEvent(),
         ) catch |err| {
             log.warn("error processing key event err={}", .{err});
             return false;
         };
+        eventInfo(
+            "ghostty_surface_key surface={*} action={} keycode={} mods=0x{X} handled={}",
+            .{
+                surface,
+                event.action,
+                event.keycode,
+                @as(c_uint, @bitCast(event.mods)),
+                handled,
+            },
+        );
+        return handled;
     }
 
     /// Returns true if the given key event would trigger a binding
@@ -1819,6 +1892,7 @@ pub const CAPI = struct {
         ptr: [*]const u8,
         len: usize,
     ) void {
+        eventInfo("ghostty_surface_text surface={*} len={}", .{ surface, len });
         surface.textCallback(ptr[0..len]);
     }
 
@@ -1829,6 +1903,7 @@ pub const CAPI = struct {
         ptr: [*]const u8,
         len: usize,
     ) void {
+        eventInfo("ghostty_surface_preedit surface={*} len={}", .{ surface, len });
         surface.preeditCallback(if (len == 0) null else ptr[0..len]);
     }
 
@@ -1845,7 +1920,7 @@ pub const CAPI = struct {
         button: input.MouseButton,
         mods: c_int,
     ) bool {
-        return surface.mouseButtonCallback(
+        const handled = surface.mouseButtonCallback(
             action,
             button,
             @bitCast(@as(
@@ -1853,6 +1928,17 @@ pub const CAPI = struct {
                 @truncate(@as(c_uint, @bitCast(mods))),
             )),
         );
+        eventInfo(
+            "ghostty_surface_mouse_button surface={*} action={} button={} mods=0x{X} handled={}",
+            .{
+                surface,
+                action,
+                button,
+                @as(c_uint, @bitCast(mods)),
+                handled,
+            },
+        );
+        return handled;
     }
 
     /// Update the mouse position within the view.
@@ -1862,6 +1948,10 @@ pub const CAPI = struct {
         y: f64,
         mods: c_int,
     ) void {
+        eventInfo(
+            "ghostty_surface_mouse_pos surface={*} x={d:.2} y={d:.2} mods=0x{X}",
+            .{ surface, x, y, @as(c_uint, @bitCast(mods)) },
+        );
         surface.cursorPosCallback(
             x,
             y,
@@ -1878,6 +1968,10 @@ pub const CAPI = struct {
         y: f64,
         scroll_mods: c_int,
     ) void {
+        eventInfo(
+            "ghostty_surface_mouse_scroll surface={*} x={d:.3} y={d:.3} mods=0x{X}",
+            .{ surface, x, y, @as(c_uint, @bitCast(scroll_mods)) },
+        );
         surface.scrollCallback(
             x,
             y,
@@ -1890,6 +1984,10 @@ pub const CAPI = struct {
         stage_raw: u32,
         pressure: f64,
     ) void {
+        eventInfo(
+            "ghostty_surface_mouse_pressure surface={*} stage_raw={} pressure={d:.3}",
+            .{ surface, stage_raw, pressure },
+        );
         const stage = std.meta.intToEnum(
             input.MousePressureStage,
             stage_raw,

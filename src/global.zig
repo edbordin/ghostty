@@ -50,6 +50,16 @@ pub const GlobalState = struct {
 
     /// Initialize the global state.
     pub fn init(self: *GlobalState) !void {
+        const trace = struct {
+            fn emit(msg: []const u8) void {
+                if (comptime builtin.os.tag == .windows) {
+                    std.debug.print("ghostty_init stage: {s}\n", .{msg});
+                }
+            }
+        }.emit;
+
+        trace("start");
+
         // const start = try std.time.Instant.now();
         // const start_micro = std.time.microTimestamp();
         // defer {
@@ -69,6 +79,7 @@ pub const GlobalState = struct {
             .rlimits = .{},
             .resources_dir = .{},
         };
+        trace("state reset");
         errdefer self.deinit();
 
         self.gpa = gpa: {
@@ -87,6 +98,7 @@ pub const GlobalState = struct {
 
             break :gpa GPA{};
         };
+        trace("allocator selected");
 
         self.alloc = if (self.gpa) |*value|
             value.allocator()
@@ -94,12 +106,14 @@ pub const GlobalState = struct {
             std.heap.c_allocator
         else
             unreachable;
+        trace("allocator bound");
 
         // We first try to parse any action that we may be executing.
         self.action = try cli.action.detectArgs(
             cli.ghostty.Action,
             self.alloc,
         );
+        trace("detectArgs done");
 
         // If we have an action executing, we disable logging by default
         // since we write to stderr we don't want logs messing up our
@@ -115,15 +129,18 @@ pub const GlobalState = struct {
             defer v.deinit(self.alloc);
             self.logging = cli.args.parsePackedStruct(Logging, v.value) catch .{};
         }
+        trace("GHOSTTY_LOG parsed");
 
         // Setup our signal handlers before logging
         initSignals();
+        trace("signals initialized");
 
         // Setup our Xev backend if we're dynamic
         if (comptime xev.dynamic) xev.detect() catch |err| {
             std.log.warn("failed to detect xev backend, falling back to " ++
                 "most compatible backend err={}", .{err});
         };
+        trace("xev detect complete");
 
         // Output some debug information right away
         std.log.info("ghostty version={s}", .{build_config.version_string});
@@ -138,9 +155,11 @@ pub const GlobalState = struct {
         }
         std.log.info("renderer={}", .{renderer.Renderer});
         std.log.info("libxev default backend={t}", .{xev.backend});
+        trace("startup logs emitted");
 
         // As early as possible, initialize our resource limits.
         self.rlimits = .init();
+        trace("rlimits initialized");
 
         // Initialize our crash reporting.
         crash.init(self.alloc) catch |err| {
@@ -149,6 +168,7 @@ pub const GlobalState = struct {
                 .{err},
             );
         };
+        trace("crash init complete");
 
         // const sentrylib = @import("sentry");
         // if (sentrylib.captureEvent(sentrylib.Value.initMessageEvent(
@@ -162,22 +182,33 @@ pub const GlobalState = struct {
         // We need to make sure the process locale is set properly. Locale
         // affects a lot of behaviors in a shell.
         try internal_os.ensureLocale(self.alloc);
+        trace("ensureLocale complete");
 
         // Initialize glslang for shader compilation
         try glslang.init();
+        trace("glslang init complete");
 
         // Initialize oniguruma for regex
         try oni.init(&.{oni.Encoding.utf8});
+        trace("oniguruma init complete");
+
+        if (comptime builtin.target.os.tag == .windows) {
+            self.resources_dir = .{};
+            trace("resourcesDir skipped on windows");
+            return;
+        }
 
         // Find our resources directory once for the app so every launch
         // hereafter can use this cached value.
         self.resources_dir = try apprt.runtime.resourcesDir(self.alloc);
         errdefer self.resources_dir.deinit(self.alloc);
+        trace("resourcesDir complete");
 
         // Setup i18n
         if (self.resources_dir.app()) |v| internal_os.i18n.init(v) catch |err| {
             std.log.warn("failed to init i18n, translations will not be available err={}", .{err});
         };
+        trace("i18n init complete");
     }
 
     /// Cleans up the global state. This doesn't _need_ to be called but

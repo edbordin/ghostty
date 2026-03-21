@@ -3,6 +3,8 @@
 #include <windows.ui.xaml.media.dxinterop.h>
 
 #include <cstdint>
+#include <iterator>
+#include <iostream>
 #include <sstream>
 #include <string>
 
@@ -23,6 +25,35 @@ using namespace winrt::Windows::UI::Xaml::Media;
 
 namespace
 {
+    static ghostty_surface_t TryCreateGhosttySurface(
+        ghostty_app_t app,
+        const ghostty_surface_config_s* config,
+        DWORD* exceptionCode) noexcept
+    {
+        if (exceptionCode)
+        {
+            *exceptionCode = 0;
+        }
+
+#if defined(_MSC_VER)
+        __try
+        {
+            return ghostty_surface_new(app, config);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            if (exceptionCode)
+            {
+                *exceptionCode = GetExceptionCode();
+            }
+            return nullptr;
+        }
+#else
+        (void)exceptionCode;
+        return ghostty_surface_new(app, config);
+#endif
+    }
+
     static std::string Utf8FromCodepoint(uint32_t cp)
     {
         std::string result;
@@ -67,6 +98,31 @@ namespace
            << static_cast<uint32_t>(e.OriginalKey())
            << L" scan=" << keyStatus.ScanCode;
         return ss.str();
+    }
+
+    static bool HostTraceEnabled() noexcept
+    {
+        static int cached = -1;
+        if (cached >= 0)
+        {
+            return cached == 1;
+        }
+
+        wchar_t buf[16]{};
+        const auto len = GetEnvironmentVariableW(
+            L"GHOSTTY_TRACE_HOST",
+            buf,
+            static_cast<DWORD>(std::size(buf)));
+
+        if (len == 0)
+        {
+            cached = 1;
+            return true;
+        }
+
+        const wchar_t ch = buf[0];
+        cached = (ch == L'0' || ch == L'f' || ch == L'F' || ch == L'n' || ch == L'N') ? 0 : 1;
+        return cached == 1;
     }
 }
 
@@ -148,7 +204,20 @@ bool GhosttyTerminalSurfaceV2::Initialize(HWND ownerWindow) noexcept
         _WireInputHandlers();
 
         stage = L"Initialize Ghostty runtime";
-        if (!_InitializeGhosttyRuntime())
+        const bool skipRuntimeInit = []() noexcept {
+            wchar_t buf[8]{};
+            const auto len = GetEnvironmentVariableW(
+                L"GHOSTTY_SKIP_RUNTIME_INIT",
+                buf,
+                static_cast<DWORD>(std::size(buf)));
+            return len > 0 && buf[0] == L'1';
+        }();
+
+        if (skipRuntimeInit)
+        {
+            _SetStatus(L"Status: Runtime init skipped (GHOSTTY_SKIP_RUNTIME_INIT=1)");
+        }
+        else if (!_InitializeGhosttyRuntime())
         {
             _SetStatus(L"Status: Runtime init failed (see logs)");
         }
@@ -312,56 +381,161 @@ bool GhosttyTerminalSurfaceV2::_InitializeGhosttyRuntime() noexcept
 {
     _ShutdownGhosttyRuntime();
 
-    _ghosttyConfig = ghostty_config_new();
-    if (!_ghosttyConfig)
+    const wchar_t* stage = L"ghostty_config_new";
+    if (HostTraceEnabled()) std::cerr << "[host] runtime_init begin" << std::endl;
+
+    try
     {
-        return false;
+        _ghosttyConfig = ghostty_config_new();
+        if (!_ghosttyConfig)
+        {
+            if (HostTraceEnabled()) std::cerr << "[host] runtime_init failed at ghostty_config_new (null config)" << std::endl;
+            _lastError = L"Ghostty runtime init failed.\nStage: ghostty_config_new\nResult: null config";
+            return false;
+        }
+
+        const bool loadDefaultConfig = []() noexcept {
+            wchar_t buf[8]{};
+            const auto len = GetEnvironmentVariableW(
+                L"GHOSTTY_LOAD_DEFAULT_CONFIG",
+                buf,
+                static_cast<DWORD>(std::size(buf)));
+            return len > 0 && buf[0] == L'1';
+        }();
+        if (loadDefaultConfig)
+        {
+            stage = L"ghostty_config_load_default_files";
+            ghostty_config_load_default_files(_ghosttyConfig);
+            if (HostTraceEnabled()) std::cerr << "[host] runtime_init loaded default config files" << std::endl;
+        }
+        else
+        {
+            if (HostTraceEnabled())
+            {
+                std::cerr << "[host] runtime_init skipping default config file load "
+                             "(set GHOSTTY_LOAD_DEFAULT_CONFIG=1 to enable)"
+                          << std::endl;
+            }
+        }
+
+        stage = L"ghostty_config_finalize";
+        ghostty_config_finalize(_ghosttyConfig);
+
+        stage = L"ghostty_app_new";
+        ghostty_runtime_config_s runtimeConfig{};
+        runtimeConfig.userdata = this;
+        runtimeConfig.supports_selection_clipboard = false;
+        runtimeConfig.wakeup_cb = &GhosttyTerminalSurfaceV2::_RuntimeWakeupCallback;
+        runtimeConfig.action_cb = &GhosttyTerminalSurfaceV2::_RuntimeActionCallback;
+        runtimeConfig.read_clipboard_cb = &GhosttyTerminalSurfaceV2::_RuntimeReadClipboardCallback;
+        runtimeConfig.confirm_read_clipboard_cb = &GhosttyTerminalSurfaceV2::_RuntimeConfirmReadClipboardCallback;
+        runtimeConfig.write_clipboard_cb = &GhosttyTerminalSurfaceV2::_RuntimeWriteClipboardCallback;
+        runtimeConfig.close_surface_cb = &GhosttyTerminalSurfaceV2::_RuntimeCloseSurfaceCallback;
+
+        _ghosttyApp = ghostty_app_new(&runtimeConfig, _ghosttyConfig);
+        if (!_ghosttyApp)
+        {
+            if (HostTraceEnabled()) std::cerr << "[host] runtime_init failed at ghostty_app_new (null app)" << std::endl;
+            _lastError = L"Ghostty runtime init failed.\nStage: ghostty_app_new\nResult: null app";
+            _ShutdownGhosttyRuntime();
+            return false;
+        }
+        if (HostTraceEnabled()) std::cerr << "[host] runtime_init app created ptr=" << _ghosttyApp << std::endl;
+
+        const bool enableSurface = []() noexcept {
+            wchar_t buf[8]{};
+            const auto len = GetEnvironmentVariableW(L"GHOSTTY_ENABLE_SURFACE", buf, static_cast<DWORD>(std::size(buf)));
+            return len > 0 && buf[0] == L'1';
+        }();
+
+        if (!enableSurface)
+        {
+            if (HostTraceEnabled()) std::cerr << "[host] runtime_init surface disabled by env" << std::endl;
+            _SetStatus(L"Status: Runtime ready (surface disabled; set GHOSTTY_ENABLE_SURFACE=1 to test)");
+            return true;
+        }
+
+        stage = L"ghostty_surface_new";
+        auto surfaceConfig = ghostty_surface_config_new();
+        surfaceConfig.platform_tag = GHOSTTY_PLATFORM_WINDOWS;
+        surfaceConfig.platform.windows.hwnd = _ownerWindow;
+        surfaceConfig.userdata = this;
+        surfaceConfig.scale_factor = static_cast<double>(GetDpiForWindow(_ownerWindow)) /
+                                     static_cast<double>(USER_DEFAULT_SCREEN_DPI);
+
+        DWORD surfaceExceptionCode = 0;
+        _ghosttySurface = TryCreateGhosttySurface(_ghosttyApp, &surfaceConfig, &surfaceExceptionCode);
+        if (surfaceExceptionCode != 0)
+        {
+            if (HostTraceEnabled())
+            {
+                std::cerr << "[host] runtime_init ghostty_surface_new raised SEH 0x"
+                          << std::hex << std::uppercase << surfaceExceptionCode
+                          << std::dec << std::nouppercase << std::endl;
+            }
+            std::wstringstream ss;
+            ss << L"Ghostty runtime init failed.\nStage: ghostty_surface_new\n";
+            ss << L"Result: SEH 0x" << std::hex << std::uppercase << surfaceExceptionCode;
+            _lastError = ss.str();
+
+            // After stack overflow (0xC00000FD), additional teardown work can
+            // itself fault. Keep the failure path minimal and avoid re-entry.
+            _ghosttySurface = nullptr;
+            return false;
+        }
+
+        if (!_ghosttySurface)
+        {
+            if (HostTraceEnabled()) std::cerr << "[host] runtime_init failed at ghostty_surface_new (null surface)" << std::endl;
+            _lastError = L"Ghostty runtime init failed.\nStage: ghostty_surface_new\nResult: null surface";
+            _ShutdownGhosttyRuntime();
+            return false;
+        }
+        if (HostTraceEnabled()) std::cerr << "[host] runtime_init surface created ptr=" << _ghosttySurface << std::endl;
+
+        const auto diagnostics = ghostty_config_diagnostics_count(_ghosttyConfig);
+        if (diagnostics > 0)
+        {
+            std::wstringstream ss;
+            ss << L"Status: Runtime initialized with " << diagnostics
+               << L" config diagnostics";
+            _SetStatus(ss.str());
+        }
+
+        return true;
     }
-
-    ghostty_config_load_default_files(_ghosttyConfig);
-    ghostty_config_finalize(_ghosttyConfig);
-
-    ghostty_runtime_config_s runtimeConfig{};
-    runtimeConfig.userdata = this;
-    runtimeConfig.supports_selection_clipboard = false;
-    runtimeConfig.wakeup_cb = &GhosttyTerminalSurfaceV2::_RuntimeWakeupCallback;
-    runtimeConfig.action_cb = &GhosttyTerminalSurfaceV2::_RuntimeActionCallback;
-    runtimeConfig.read_clipboard_cb = &GhosttyTerminalSurfaceV2::_RuntimeReadClipboardCallback;
-    runtimeConfig.confirm_read_clipboard_cb = &GhosttyTerminalSurfaceV2::_RuntimeConfirmReadClipboardCallback;
-    runtimeConfig.write_clipboard_cb = &GhosttyTerminalSurfaceV2::_RuntimeWriteClipboardCallback;
-    runtimeConfig.close_surface_cb = &GhosttyTerminalSurfaceV2::_RuntimeCloseSurfaceCallback;
-
-    _ghosttyApp = ghostty_app_new(&runtimeConfig, _ghosttyConfig);
-    if (!_ghosttyApp)
+    catch (const std::exception& ex)
     {
-        _ShutdownGhosttyRuntime();
-        return false;
-    }
-
-    auto surfaceConfig = ghostty_surface_config_new();
-    surfaceConfig.platform_tag = GHOSTTY_PLATFORM_WINDOWS;
-    surfaceConfig.platform.windows.hwnd = _ownerWindow;
-    surfaceConfig.userdata = this;
-    surfaceConfig.scale_factor = static_cast<double>(GetDpiForWindow(_ownerWindow)) /
-                                 static_cast<double>(USER_DEFAULT_SCREEN_DPI);
-
-    _ghosttySurface = ghostty_surface_new(_ghosttyApp, &surfaceConfig);
-    if (!_ghosttySurface)
-    {
-        _ShutdownGhosttyRuntime();
-        return false;
-    }
-
-    const auto diagnostics = ghostty_config_diagnostics_count(_ghosttyConfig);
-    if (diagnostics > 0)
-    {
+        if (HostTraceEnabled())
+        {
+            std::cerr << "[host] runtime_init exception at stage: "
+                      << winrt::to_string(winrt::hstring{ stage })
+                      << std::endl;
+        }
         std::wstringstream ss;
-        ss << L"Status: Runtime initialized with " << diagnostics
-           << L" config diagnostics";
-        _SetStatus(ss.str());
+        ss << L"Ghostty runtime init failed.\n";
+        ss << L"Stage: " << stage << L"\n";
+        ss << L"std::exception: " << to_hstring(ex.what()).c_str();
+        _lastError = ss.str();
+        _ShutdownGhosttyRuntime();
+        return false;
     }
-
-    return true;
+    catch (...)
+    {
+        if (HostTraceEnabled())
+        {
+            std::cerr << "[host] runtime_init unknown exception at stage: "
+                      << winrt::to_string(winrt::hstring{ stage })
+                      << std::endl;
+        }
+        std::wstringstream ss;
+        ss << L"Ghostty runtime init failed.\n";
+        ss << L"Stage: " << stage << L"\n";
+        ss << L"Unknown exception";
+        _lastError = ss.str();
+        _ShutdownGhosttyRuntime();
+        return false;
+    }
 }
 
 void GhosttyTerminalSurfaceV2::_ShutdownGhosttyRuntime() noexcept
@@ -425,6 +599,11 @@ bool GhosttyTerminalSurfaceV2::_SendKeyToGhostty(
 {
     if (!_ghosttyApp)
     {
+        if (HostTraceEnabled())
+        {
+            std::cerr << "[host] key drop: ghostty app is null (keycode=" << keycode
+                      << ", down=" << (keyDown ? 1 : 0) << ")" << std::endl;
+        }
         return false;
     }
 
@@ -438,9 +617,19 @@ bool GhosttyTerminalSurfaceV2::_SendKeyToGhostty(
     ev.composing = false;
     if (_ghosttySurface)
     {
+        if (HostTraceEnabled())
+        {
+            std::cerr << "[host] key -> ghostty_surface_key (keycode=" << keycode
+                      << ", down=" << (keyDown ? 1 : 0) << ")" << std::endl;
+        }
         return ghostty_surface_key(_ghosttySurface, ev);
     }
 
+    if (HostTraceEnabled())
+    {
+        std::cerr << "[host] key -> ghostty_app_key (keycode=" << keycode
+                  << ", down=" << (keyDown ? 1 : 0) << ")" << std::endl;
+    }
     return ghostty_app_key(_ghosttyApp, ev);
 }
 

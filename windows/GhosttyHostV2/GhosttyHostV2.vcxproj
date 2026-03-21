@@ -63,8 +63,16 @@
       <AdditionalDependencies>$(GhosttyImportLibPath);runtimeobject.lib;windowsapp.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(GhosttyDllPath)" "$(OutDir)ghostty.dll" &gt;NUL</Command>
+      <Command>copy /Y "$(GhosttyDllPath)" "$(OutDir)ghostty.dll" &gt;NUL
+copy /Y "$(ProjectDir)RunGhosttyHostV2.bat" "$(OutDir)RunGhosttyHostV2.bat" &gt;NUL</Command>
     </PostBuildEvent>
+  </ItemDefinitionGroup>
+
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Link>
+      <!-- libghostty Debug surface init can be stack-heavy; reserve more stack for bring-up -->
+      <StackReserveSize>16777216</StackReserveSize>
+    </Link>
   </ItemDefinitionGroup>
 
   <ItemGroup>

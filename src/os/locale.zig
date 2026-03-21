@@ -12,6 +12,12 @@ const log = std.log.scoped(.os_locale);
 pub fn ensureLocale(alloc: std.mem.Allocator) !void {
     assert(builtin.link_libc);
 
+    // On Windows, UCRT locale parsing can fail-fast for some locale strings
+    // in host environments. Skip locale mutation in lib mode for now.
+    if (comptime builtin.target.os.tag == .windows) {
+        return;
+    }
+
     // Get our LANG env var. We use this many times but we also need
     // the original value later.
     const lang = try internal_os.getenv(alloc, "LANG");
