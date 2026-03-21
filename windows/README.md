@@ -80,3 +80,11 @@ Both hosts embed custom app manifests (`GhosttyHost.manifest` and `GhosttyHostV2
 - `GhosttyHostV2` initializes `ghostty_app_t`, creates `ghostty_surface_t` with `GHOSTTY_PLATFORM_WINDOWS`, and pumps runtime ticks on the Win32 thread.
 - Current renderer state for Windows is the Zig no-op backend, so surface lifecycle and input routing run, but there is no visible terminal frame output yet.
 - For Windows PTY/process flow, Ghostty uses ConPTY APIs internally (`CreatePseudoConsole` and process startup attributes). The host does not currently call `AttachConsole`/`AllocConsole` and does not own PTY lifecycle yet.
+
+## Runtime toggles (GhosttyHostV2)
+
+- `GHOSTTY_ENABLE_SURFACE=1` enables `ghostty_surface_t` creation. If unset, host runs app-only mode (`ghostty_app_t` without surface/PTY path).
+- `GHOSTTY_LOAD_DEFAULT_CONFIG=1` enables `ghostty_config_load_default_files`. If unset, runtime skips default config file loading.
+- `GHOSTTY_TRACE_HOST=0` disables host-side `[host] ...` tracing. Default is enabled.
+- `GHOSTTY_TRACE_EMBEDDED_EVENTS=0` disables embedded event tracing from `ghostty.dll`. Default is enabled.
+- `RunGhosttyHostV2.bat` sets `GHOSTTY_LOG=stderr`, writes output to `GhosttyHostV2.log`, and prints the log tail on exit.
