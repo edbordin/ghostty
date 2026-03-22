@@ -218,6 +218,7 @@ void IslandWindowV2::ResizeIsland() noexcept
     _terminalSurface.SetSurfaceMetrics(
         static_cast<uint32_t>(width),
         static_cast<uint32_t>(height),
+        scale,
         scale);
 }
 

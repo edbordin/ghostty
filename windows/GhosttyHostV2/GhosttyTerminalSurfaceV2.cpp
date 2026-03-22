@@ -379,14 +379,14 @@ void GhosttyTerminalSurfaceV2::FocusTerminal() noexcept
     }
 }
 
-void GhosttyTerminalSurfaceV2::SetSurfaceMetrics(uint32_t widthPx, uint32_t heightPx, double scaleFactor) noexcept
+void GhosttyTerminalSurfaceV2::SetSurfaceMetrics(uint32_t widthPx, uint32_t heightPx, double scaleX, double scaleY) noexcept
 {
     if (!_ghosttySurface)
     {
         return;
     }
 
-    ghostty_surface_set_content_scale(_ghosttySurface, scaleFactor, scaleFactor);
+    ghostty_surface_set_content_scale(_ghosttySurface, scaleX, scaleY);
     ghostty_surface_set_size(_ghosttySurface, widthPx, heightPx);
 }
 
@@ -506,15 +506,16 @@ void GhosttyTerminalSurfaceV2::_ApplyPanelMetrics() noexcept
 
     const double widthDip = _swapChainPanel.ActualWidth();
     const double heightDip = _swapChainPanel.ActualHeight();
-    const double scale = _swapChainPanel.CompositionScaleX();
-    if (widthDip <= 0.0 || heightDip <= 0.0 || scale <= 0.0)
+    const double scaleX = _swapChainPanel.CompositionScaleX();
+    const double scaleY = _swapChainPanel.CompositionScaleY();
+    if (widthDip <= 0.0 || heightDip <= 0.0 || scaleX <= 0.0 || scaleY <= 0.0)
     {
         return;
     }
 
-    const auto widthPx = static_cast<uint32_t>(std::llround(widthDip * scale));
-    const auto heightPx = static_cast<uint32_t>(std::llround(heightDip * scale));
-    SetSurfaceMetrics(widthPx, heightPx, scale);
+    const auto widthPx = static_cast<uint32_t>(std::llround(widthDip * scaleX));
+    const auto heightPx = static_cast<uint32_t>(std::llround(heightDip * scaleY));
+    SetSurfaceMetrics(widthPx, heightPx, scaleX, scaleY);
 }
 
 bool GhosttyTerminalSurfaceV2::_InitializeGhosttyRuntime() noexcept
@@ -620,8 +621,12 @@ bool GhosttyTerminalSurfaceV2::_InitializeGhosttyRuntime() noexcept
             }
         }
         surfaceConfig.userdata = this;
-        surfaceConfig.scale_factor = static_cast<double>(GetDpiForWindow(_ownerWindow)) /
-                                     static_cast<double>(USER_DEFAULT_SCREEN_DPI);
+        const double initialScale =
+            (_swapChainPanel && _swapChainPanel.CompositionScaleX() > 0.0)
+                ? _swapChainPanel.CompositionScaleX()
+                : static_cast<double>(GetDpiForWindow(_ownerWindow)) /
+                      static_cast<double>(USER_DEFAULT_SCREEN_DPI);
+        surfaceConfig.scale_factor = initialScale;
 
         DWORD surfaceExceptionCode = 0;
         _ghosttySurface = TryCreateGhosttySurface(_ghosttyApp, &surfaceConfig, &surfaceExceptionCode);

@@ -1,4 +1,5 @@
 const builtin = @import("builtin");
+const std = @import("std");
 
 const win32 = if (builtin.os.tag == .windows) @import("win32").everything else struct {};
 const win32ext = if (builtin.os.tag == .windows) @import("win32ext.zig") else struct {};
@@ -29,7 +30,12 @@ pub const State = if (builtin.os.tag == .windows) struct {
     device: ?*win32.ID3D11Device = null,
     context: ?*win32.ID3D11DeviceContext = null,
     swap_chain: ?*win32.IDXGISwapChain1 = null,
+    swap_chain2: ?*win32.IDXGISwapChain2 = null,
     render_target: ?*win32.ID3D11RenderTargetView = null,
+    frame_texture: ?*win32.ID3D11Texture2D = null,
+    frame_texture_valid: bool = false,
+    composition_scale_x: f32 = 1.0,
+    composition_scale_y: f32 = 1.0,
     width: u32 = 0,
     height: u32 = 0,
 
@@ -57,12 +63,27 @@ pub const State = if (builtin.os.tag == .windows) struct {
     }
 
     pub fn deinit(self: *State) void {
+        win32ext.releaseAndNull(win32.ID3D11Texture2D, &self.frame_texture);
         win32ext.releaseAndNull(win32.ID3D11RenderTargetView, &self.render_target);
+        win32ext.releaseAndNull(win32.IDXGISwapChain2, &self.swap_chain2);
         win32ext.releaseAndNull(win32.IDXGISwapChain1, &self.swap_chain);
         win32ext.releaseAndNull(win32.ID3D11DeviceContext, &self.context);
         win32ext.releaseAndNull(win32.ID3D11Device, &self.device);
+        self.frame_texture_valid = false;
         self.width = 0;
         self.height = 0;
+    }
+
+    pub fn setCompositionScale(self: *State, scale_x: f32, scale_y: f32) bool {
+        const safe_x = sanitizeScale(scale_x);
+        const safe_y = sanitizeScale(scale_y);
+        if (self.composition_scale_x == safe_x and self.composition_scale_y == safe_y) {
+            return true;
+        }
+
+        self.composition_scale_x = safe_x;
+        self.composition_scale_y = safe_y;
+        return self.applyCompositionScaleTransform();
     }
 
     pub fn resize(self: *State, width: u32, height: u32) bool {
@@ -92,7 +113,9 @@ pub const State = if (builtin.os.tag == .windows) struct {
         );
         if (hr < 0) return false;
 
+        _ = self.applyCompositionScaleTransform();
         if (!self.createRenderTarget()) return false;
+        if (!self.ensureFrameTexture(width, height)) return false;
 
         self.width = width;
         self.height = height;
@@ -100,20 +123,46 @@ pub const State = if (builtin.os.tag == .windows) struct {
     }
 
     pub fn presentClear(self: *State, clear_color: [4]f32) bool {
+        return self.presentFrame(clear_color, null, self.width, self.height);
+    }
+
+    pub fn presentFrame(
+        self: *State,
+        clear_color: [4]f32,
+        pixels: ?[]const u8,
+        width: u32,
+        height: u32,
+    ) bool {
         if (self.context == null or self.swap_chain == null or self.render_target == null) {
             return false;
         }
 
-        var target = self.render_target.?;
-        self.context.?.OMSetRenderTargets(
-            1,
-            @ptrCast(&target),
-            null,
-        );
-        self.context.?.ClearRenderTargetView(
-            self.render_target.?,
-            @ptrCast(&clear_color),
-        );
+        if (pixels) |data| {
+            if (data.len > 0 and width > 0 and height > 0) {
+                if (!self.uploadFramePixels(data, width, height)) return false;
+            }
+        }
+
+        if (self.frame_texture_valid) {
+            var null_target: ?*win32.ID3D11RenderTargetView = null;
+            self.context.?.OMSetRenderTargets(
+                1,
+                @ptrCast(&null_target),
+                null,
+            );
+            self.drawFrameTexture();
+        } else {
+            var target = self.render_target.?;
+            self.context.?.OMSetRenderTargets(
+                1,
+                @ptrCast(&target),
+                null,
+            );
+            self.context.?.ClearRenderTargetView(
+                self.render_target.?,
+                @ptrCast(&clear_color),
+            );
+        }
 
         const hr = self.swap_chain.?.IDXGISwapChain.Present(1, 0);
         return hr >= 0 or hr == win32.DXGI_STATUS_OCCLUDED;
@@ -284,15 +333,29 @@ pub const State = if (builtin.os.tag == .windows) struct {
         );
         if (create_hr < 0) return false;
 
+        var swap_chain2: ?*win32.IDXGISwapChain2 = null;
+        const swap_chain2_hr = swap_chain.IUnknown.QueryInterface(
+            win32.IID_IDXGISwapChain2,
+            @ptrCast(&swap_chain2),
+        );
+        if (swap_chain2_hr < 0 or swap_chain2 == null) {
+            _ = swap_chain.IUnknown.Release();
+            return false;
+        }
+
         if (!setSwapChainOnPanel(swap_chain_panel.?, swap_chain)) {
+            _ = swap_chain2.?.IUnknown.Release();
             _ = swap_chain.IUnknown.Release();
             return false;
         }
 
         self.swap_chain = swap_chain;
+        self.swap_chain2 = swap_chain2;
         self.width = width;
         self.height = height;
-        return self.createRenderTarget();
+        _ = self.applyCompositionScaleTransform();
+        if (!self.createRenderTarget()) return false;
+        return self.ensureFrameTexture(width, height);
     }
 
     fn createRenderTarget(self: *State) bool {
@@ -316,6 +379,98 @@ pub const State = if (builtin.os.tag == .windows) struct {
         if (rtv_hr < 0 or rtv == null) return false;
         self.render_target = rtv;
         return true;
+    }
+
+    fn ensureFrameTexture(self: *State, width: u32, height: u32) bool {
+        if (self.device == null or width == 0 or height == 0) return false;
+
+        if (self.frame_texture) |tex| {
+            var desc: win32.D3D11_TEXTURE2D_DESC = undefined;
+            tex.GetDesc(&desc);
+            if (desc.Width == width and desc.Height == height) return true;
+        }
+
+        win32ext.releaseAndNull(win32.ID3D11Texture2D, &self.frame_texture);
+        self.frame_texture_valid = false;
+
+        var texture: ?*win32.ID3D11Texture2D = null;
+        const desc: win32.D3D11_TEXTURE2D_DESC = .{
+            .Width = width,
+            .Height = height,
+            .MipLevels = 1,
+            .ArraySize = 1,
+            .Format = win32.DXGI_FORMAT_B8G8R8A8_UNORM,
+            .SampleDesc = .{ .Count = 1, .Quality = 0 },
+            .Usage = .DEFAULT,
+            .BindFlags = .{},
+            .CPUAccessFlags = .{},
+            .MiscFlags = .{},
+        };
+        const texture_hr = self.device.?.CreateTexture2D(&desc, null, @ptrCast(&texture));
+        if (texture_hr < 0 or texture == null) return false;
+        self.frame_texture = texture;
+        return true;
+    }
+
+    fn uploadFramePixels(self: *State, pixels: []const u8, width: u32, height: u32) bool {
+        if (self.context == null) return false;
+        if (!self.ensureFrameTexture(width, height)) return false;
+        if (self.frame_texture == null) return false;
+
+        const expected = @as(usize, width) * @as(usize, height) * 4;
+        if (pixels.len < expected) return false;
+
+        self.context.?.UpdateSubresource(
+            @ptrCast(&self.frame_texture.?.ID3D11Resource),
+            0,
+            null,
+            @ptrCast(pixels.ptr),
+            width * 4,
+            0,
+        );
+        self.frame_texture_valid = true;
+        return true;
+    }
+
+    fn drawFrameTexture(self: *State) void {
+        if (self.context == null or self.swap_chain == null or self.frame_texture == null) return;
+
+        var back_buffer: *win32.ID3D11Texture2D = undefined;
+        const hr = self.swap_chain.?.IDXGISwapChain.GetBuffer(
+            0,
+            win32.IID_ID3D11Texture2D,
+            @ptrCast(&back_buffer),
+        );
+        if (hr < 0) return;
+        defer _ = back_buffer.IUnknown.Release();
+
+        self.context.?.CopyResource(
+            @ptrCast(&back_buffer.ID3D11Resource),
+            @ptrCast(&self.frame_texture.?.ID3D11Resource),
+        );
+    }
+
+    fn applyCompositionScaleTransform(self: *State) bool {
+        if (self.swap_chain2 == null) return false;
+
+        // SwapChainPanel/WinUI applies composition scaling; apply the inverse
+        // so Ghostty renders at full native resolution:
+        // https://stackoverflow.com/a/42543636
+        const matrix: win32.DXGI_MATRIX_3X2_F = .{
+            ._11 = 1.0 / self.composition_scale_x,
+            ._12 = 0.0,
+            ._21 = 0.0,
+            ._22 = 1.0 / self.composition_scale_y,
+            ._31 = 0.0,
+            ._32 = 0.0,
+        };
+        const hr = self.swap_chain2.?.SetMatrixTransform(&matrix);
+        return hr >= 0;
+    }
+
+    fn sanitizeScale(scale: f32) f32 {
+        if (!std.math.isFinite(scale) or scale <= 0.0) return 1.0;
+        return scale;
     }
 } else struct {
     pub fn init(
@@ -345,6 +500,28 @@ pub const State = if (builtin.os.tag == .windows) struct {
     pub fn presentClear(self: *State, clear_color: [4]f32) bool {
         _ = self;
         _ = clear_color;
+        return false;
+    }
+
+    pub fn presentFrame(
+        self: *State,
+        clear_color: [4]f32,
+        pixels: ?[]const u8,
+        width: u32,
+        height: u32,
+    ) bool {
+        _ = self;
+        _ = clear_color;
+        _ = pixels;
+        _ = width;
+        _ = height;
+        return false;
+    }
+
+    pub fn setCompositionScale(self: *State, scale_x: f32, scale_y: f32) bool {
+        _ = self;
+        _ = scale_x;
+        _ = scale_y;
         return false;
     }
 };

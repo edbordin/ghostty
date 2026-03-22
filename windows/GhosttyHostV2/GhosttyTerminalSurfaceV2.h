@@ -29,7 +29,7 @@ public:
 
     winrt::Windows::UI::Xaml::UIElement Root() const noexcept;
     void FocusTerminal() noexcept;
-    void SetSurfaceMetrics(uint32_t widthPx, uint32_t heightPx, double scaleFactor) noexcept;
+    void SetSurfaceMetrics(uint32_t widthPx, uint32_t heightPx, double scaleX, double scaleY) noexcept;
 
     bool OnDirectKeyEvent(uint32_t vkey, uint8_t scanCode, bool down) noexcept;
     bool OnMouseWheel(const winrt::Windows::Foundation::Point& location,

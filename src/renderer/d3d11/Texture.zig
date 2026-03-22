@@ -1,5 +1,6 @@
 //! Wrapper for noop textures.
 const Self = @This();
+const std = @import("std");
 
 pub const Format = enum {
     red,
@@ -42,12 +43,13 @@ pub const Options = struct {
     wrap_t: Wrap,
 };
 
-pub const Error = error{};
+pub const Error = error{OutOfMemory};
 
 width: usize,
 height: usize,
 format: Format,
 target: Target,
+data: []u8,
 
 pub fn init(
     opts: Options,
@@ -55,17 +57,27 @@ pub fn init(
     height: usize,
     data: ?[]const u8,
 ) Error!Self {
-    _ = data;
+    const bpp = bytesPerPixel(opts.format);
+    const total = width * height * bpp;
+    var storage = try std.heap.page_allocator.alloc(u8, total);
+    @memset(storage, 0);
+
+    if (data) |src| {
+        const copy_len = @min(src.len, storage.len);
+        @memcpy(storage[0..copy_len], src[0..copy_len]);
+    }
+
     return .{
         .width = width,
         .height = height,
         .format = opts.format,
         .target = opts.target,
+        .data = storage,
     };
 }
 
 pub fn deinit(self: Self) void {
-    _ = self;
+    std.heap.page_allocator.free(self.data);
 }
 
 pub fn replaceRegion(
@@ -76,10 +88,29 @@ pub fn replaceRegion(
     height: usize,
     data: []const u8,
 ) Error!void {
-    _ = self;
-    _ = x;
-    _ = y;
-    _ = width;
-    _ = height;
-    _ = data;
+    if (x >= self.width or y >= self.height) return;
+    const bpp = bytesPerPixel(self.format);
+    if (bpp == 0) return;
+
+    const copy_w = @min(width, self.width - x);
+    const copy_h = @min(height, self.height - y);
+    const src_row_bytes = copy_w * bpp;
+    const dst_row_pitch = self.width * bpp;
+
+    if (src_row_bytes == 0 or copy_h == 0) return;
+
+    for (0..copy_h) |row| {
+        const src_off = row * src_row_bytes;
+        const dst_off = (y + row) * dst_row_pitch + x * bpp;
+        const src_end = src_off + src_row_bytes;
+        if (src_end > data.len) break;
+        @memcpy(self.data[dst_off .. dst_off + src_row_bytes], data[src_off..src_end]);
+    }
+}
+
+pub fn bytesPerPixel(format: Format) usize {
+    return switch (format) {
+        .red => 1,
+        .rgba, .bgra => 4,
+    };
 }

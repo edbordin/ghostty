@@ -66,6 +66,43 @@ pub fn step(self: *Self, s: Step) void {
         }
     }
 
+    switch (s.pipeline.kind) {
+        .bg_color => {
+            if (s.uniforms) |uniforms| {
+                self.renderer.api.captureUniformBuffer(uniforms);
+            }
+            if (s.buffers.len > 1) {
+                if (s.buffers[1]) |bg| self.renderer.api.captureBgBuffer(bg);
+            }
+        },
+        .cell_bg => {
+            if (s.buffers.len > 1) {
+                if (s.buffers[1]) |bg| self.renderer.api.captureBgBuffer(bg);
+            }
+        },
+        .cell_text => {
+            var fg: ?D3D11.BufferHandle = null;
+            var bg: ?D3D11.BufferHandle = null;
+            if (s.buffers.len > 0) fg = s.buffers[0];
+            if (s.buffers.len > 1) bg = s.buffers[1];
+
+            var grayscale: ?Texture = null;
+            var color: ?Texture = null;
+            if (s.textures.len > 0) grayscale = s.textures[0];
+            if (s.textures.len > 1) color = s.textures[1];
+
+            self.renderer.api.captureTextStep(.{
+                .uniforms = s.uniforms,
+                .fg = fg,
+                .bg = bg,
+                .grayscale = grayscale,
+                .color = color,
+                .instance_count = s.draw.instance_count,
+            });
+        },
+        else => {},
+    }
+
     self.step_number += 1;
 }
 

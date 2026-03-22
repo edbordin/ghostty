@@ -4,6 +4,58 @@ const math = @import("../../math.zig");
 
 const Pipeline = @import("Pipeline.zig");
 
+const pipeline_descs: []const struct { [:0]const u8, PipelineDescription } =
+    &.{
+        .{ "bg_color", .{
+            .vertex_fn = "full_screen_vertex",
+            .fragment_fn = "bg_color_fragment",
+            .blending_enabled = false,
+        } },
+        .{ "cell_bg", .{
+            .vertex_fn = "full_screen_vertex",
+            .fragment_fn = "cell_bg_fragment",
+            .blending_enabled = true,
+        } },
+        .{ "cell_text", .{
+            .vertex_attributes = CellText,
+            .vertex_fn = "cell_text_vertex",
+            .fragment_fn = "cell_text_fragment",
+            .step_fn = .per_instance,
+            .blending_enabled = true,
+        } },
+        .{ "image", .{
+            .vertex_attributes = Image,
+            .vertex_fn = "image_vertex",
+            .fragment_fn = "image_fragment",
+            .step_fn = .per_instance,
+            .blending_enabled = true,
+        } },
+        .{ "bg_image", .{
+            .vertex_attributes = BgImage,
+            .vertex_fn = "bg_image_vertex",
+            .fragment_fn = "bg_image_fragment",
+            .step_fn = .per_instance,
+            .blending_enabled = true,
+        } },
+    };
+
+const PipelineDescription = struct {
+    vertex_attributes: ?type = null,
+    vertex_fn: [:0]const u8,
+    fragment_fn: [:0]const u8,
+    step_fn: Pipeline.Options.StepFunction = .per_vertex,
+    blending_enabled: bool = true,
+
+    fn initPipeline(self: PipelineDescription) !Pipeline {
+        return try .init(self.vertex_attributes, .{
+            .vertex_fn = self.vertex_fn,
+            .fragment_fn = self.fragment_fn,
+            .step_fn = self.step_fn,
+            .blending_enabled = self.blending_enabled,
+        });
+    }
+};
+
 pub const Uniforms = extern struct {
     projection_matrix: math.Mat align(16),
     screen_size: [2]f32 align(8),
@@ -93,28 +145,57 @@ pub const BgImage = extern struct {
     };
 };
 
-const PipelineCollection = struct {
-    bg_color: Pipeline = .{},
-    cell_bg: Pipeline = .{},
-    cell_text: Pipeline = .{},
-    image: Pipeline = .{},
-    bg_image: Pipeline = .{},
+const PipelineCollection = t: {
+    var fields: [pipeline_descs.len]std.builtin.Type.StructField = undefined;
+    for (pipeline_descs, 0..) |pipeline, i| {
+        fields[i] = .{
+            .name = pipeline[0],
+            .type = Pipeline,
+            .default_value_ptr = null,
+            .is_comptime = false,
+            .alignment = @alignOf(Pipeline),
+        };
+    }
+    break :t @Type(.{ .@"struct" = .{
+        .layout = .auto,
+        .fields = &fields,
+        .decls = &.{},
+        .is_tuple = false,
+    } });
 };
 
 pub const Shaders = struct {
-    pipelines: PipelineCollection = .{},
+    pipelines: PipelineCollection,
     post_pipelines: []const Pipeline = &.{},
     defunct: bool = false,
 
     pub fn init(alloc: Allocator, post_shaders: []const [:0]const u8) !Shaders {
         _ = alloc;
         _ = post_shaders;
-        return .{};
+
+        var pipelines: PipelineCollection = undefined;
+        var initialized: usize = 0;
+        errdefer inline for (pipeline_descs, 0..) |pipeline, i| {
+            if (i < initialized) @field(pipelines, pipeline[0]).deinit();
+        };
+
+        inline for (pipeline_descs) |pipeline| {
+            @field(pipelines, pipeline[0]) = try pipeline[1].initPipeline();
+            initialized += 1;
+        }
+
+        return .{
+            .pipelines = pipelines,
+            .post_pipelines = &.{},
+        };
     }
 
     pub fn deinit(self: *Shaders, alloc: Allocator) void {
         _ = alloc;
         if (self.defunct) return;
         self.defunct = true;
+        inline for (pipeline_descs) |pipeline| {
+            @field(self.pipelines, pipeline[0]).deinit();
+        }
     }
 };
