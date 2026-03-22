@@ -16,6 +16,7 @@ pub const shadertoy = @import("renderer/shadertoy.zig");
 pub const Backend = @import("renderer/backend.zig").Backend;
 pub const GenericRenderer = @import("renderer/generic.zig").Renderer;
 pub const Noop = @import("renderer/Noop.zig");
+pub const D3D11 = @import("renderer/D3D11.zig");
 pub const Metal = @import("renderer/Metal.zig");
 pub const OpenGL = @import("renderer/OpenGL.zig");
 pub const WebGL = @import("renderer/WebGL.zig");
@@ -38,6 +39,7 @@ pub const lib = @import("lib/main.zig");
 /// so that every build has exactly one renderer implementation.
 pub const Renderer = switch (build_config.renderer) {
     .noop => GenericRenderer(Noop),
+    .d3d11 => GenericRenderer(D3D11),
     .metal => GenericRenderer(Metal),
     .opengl => GenericRenderer(OpenGL),
     .webgl => WebGL,

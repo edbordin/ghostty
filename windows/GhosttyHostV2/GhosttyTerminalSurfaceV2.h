@@ -42,6 +42,8 @@ public:
 
 private:
     bool _InitializeGhosttyRuntime() noexcept;
+    void _TryInitializeGhosttyRuntimeOnLayout() noexcept;
+    void _ApplyPanelMetrics() noexcept;
     void _ShutdownGhosttyRuntime() noexcept;
     void _ScheduleRuntimeTick() noexcept;
     ghostty_input_mods_e _CurrentMods() const noexcept;
@@ -75,6 +77,13 @@ private:
     ghostty_config_t _ghosttyConfig{ nullptr };
     ghostty_app_t _ghosttyApp{ nullptr };
     ghostty_surface_t _ghosttySurface{ nullptr };
+    bool _runtimeInitialized{ false };
+    bool _runtimeInitDeferred{ false };
+    winrt::Windows::UI::Xaml::Controls::SwapChainPanel::LayoutUpdated_revoker _swapChainLayoutUpdatedRevoker{};
+    winrt::event_token _swapChainSizeChangedToken{};
+    winrt::event_token _swapChainScaleChangedToken{};
+    bool _swapChainSizeChangedRegistered{ false };
+    bool _swapChainScaleChangedRegistered{ false };
     std::atomic_bool _runtimeTickScheduled{ false };
     std::wstring _lastError{};
 };

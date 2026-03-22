@@ -385,6 +385,10 @@ pub const Platform = union(PlatformTag) {
     pub const Windows = if (builtin.target.os.tag == .windows) struct {
         /// The window handle for the host surface.
         hwnd: ?*anyopaque,
+
+        /// Native swapchain panel interface pointer for composition hosting.
+        /// Expected type on Windows hosts: ISwapChainPanelNative2*.
+        swap_chain_panel: ?*anyopaque,
     } else void;
 
     // The C ABI compatible version of this union. The tag is expected
@@ -400,6 +404,7 @@ pub const Platform = union(PlatformTag) {
 
         windows: extern struct {
             hwnd: ?*anyopaque,
+            swap_chain_panel: ?*anyopaque,
         },
     };
 
@@ -425,6 +430,7 @@ pub const Platform = union(PlatformTag) {
                 const config = c_platform.windows;
                 break :windows .{ .windows = .{
                     .hwnd = config.hwnd,
+                    .swap_chain_panel = config.swap_chain_panel,
                 } };
             } else error.UnsupportedPlatform,
         };
@@ -1614,8 +1620,11 @@ pub const CAPI = struct {
         );
         if (opts.platform_tag == @intFromEnum(PlatformTag.windows)) {
             eventDebug(
-                "ghostty_surface_new windows hwnd={any}",
-                .{opts.platform.windows.hwnd},
+                "ghostty_surface_new windows hwnd={any} swap_chain_panel={any}",
+                .{
+                    opts.platform.windows.hwnd,
+                    opts.platform.windows.swap_chain_panel,
+                },
             );
         }
         return surface;

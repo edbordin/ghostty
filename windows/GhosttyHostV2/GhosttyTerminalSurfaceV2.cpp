@@ -2,6 +2,7 @@
 
 #include <windows.ui.xaml.media.dxinterop.h>
 
+#include <cmath>
 #include <cstdint>
 #include <iterator>
 #include <iostream>
@@ -124,12 +125,41 @@ namespace
         cached = (ch == L'0' || ch == L'f' || ch == L'F' || ch == L'n' || ch == L'N') ? 0 : 1;
         return cached == 1;
     }
+
+    static bool HostOverlayEnabled() noexcept
+    {
+        static int cached = -1;
+        if (cached >= 0)
+        {
+            return cached == 1;
+        }
+
+        wchar_t buf[16]{};
+        const auto len = GetEnvironmentVariableW(
+            L"GHOSTTY_HOST_OVERLAY",
+            buf,
+            static_cast<DWORD>(std::size(buf)));
+
+        if (len == 0)
+        {
+            cached = 0;
+            return false;
+        }
+
+        const wchar_t ch = buf[0];
+        cached = (ch == L'0' || ch == L'f' || ch == L'F' || ch == L'n' || ch == L'N') ? 0 : 1;
+        return cached == 1;
+    }
 }
 
 bool GhosttyTerminalSurfaceV2::Initialize(HWND ownerWindow) noexcept
 {
     _ownerWindow = ownerWindow;
     _lastError.clear();
+    _runtimeInitialized = false;
+    _runtimeInitDeferred = false;
+    _swapChainSizeChangedRegistered = false;
+    _swapChainScaleChangedRegistered = false;
     std::wstring stage = L"Create root controls";
 
     try
@@ -148,7 +178,6 @@ bool GhosttyTerminalSurfaceV2::Initialize(HWND ownerWindow) noexcept
             _swapChainPanel = SwapChainPanel{};
             _swapChainPanel.HorizontalAlignment(HorizontalAlignment::Stretch);
             _swapChainPanel.VerticalAlignment(VerticalAlignment::Stretch);
-            _swapChainPanel.Background(SolidColorBrush{ winrt::Windows::UI::ColorHelper::FromArgb(255, 22, 22, 24) });
             _layout.Children().Append(_swapChainPanel);
             swapChainReady = true;
         }
@@ -159,6 +188,14 @@ bool GhosttyTerminalSurfaceV2::Initialize(HWND ownerWindow) noexcept
                << std::hex << std::uppercase << static_cast<uint32_t>(ex.code().value)
                << L"): " << ex.message().c_str();
             _lastError = ss.str();
+            if (HostTraceEnabled())
+            {
+                std::cerr << "[host] swapchain panel setup failed hr=0x"
+                          << std::hex << std::uppercase << static_cast<uint32_t>(ex.code().value)
+                          << std::dec << std::nouppercase
+                          << " message=" << winrt::to_string(ex.message())
+                          << std::endl;
+            }
 
             auto fallback = Border{};
             fallback.HorizontalAlignment(HorizontalAlignment::Stretch);
@@ -167,32 +204,35 @@ bool GhosttyTerminalSurfaceV2::Initialize(HWND ownerWindow) noexcept
             _layout.Children().Append(fallback);
         }
 
-        stage = L"Create overlay";
-        auto overlay = StackPanel{};
-        overlay.Margin(ThicknessHelper::FromUniformLength(12.0));
-        overlay.Orientation(Orientation::Vertical);
-        overlay.HorizontalAlignment(HorizontalAlignment::Left);
-        overlay.VerticalAlignment(VerticalAlignment::Top);
-
-        auto titleText = TextBlock{};
-        titleText.Text(L"GhosttyHostV2");
-        titleText.FontSize(22.0);
-
-        auto subtitleText = TextBlock{};
-        subtitleText.Text(L"Terminal-style input and swapchain surface scaffold");
-        subtitleText.Opacity(0.82);
-
         _versionText.Text(L"libghostty: (loading)");
         _statusText.Text(L"Status: Initializing");
         _statusText.TextWrapping(TextWrapping::Wrap);
 
-        overlay.Children().Append(titleText);
-        overlay.Children().Append(subtitleText);
-        overlay.Children().Append(_versionText);
-        overlay.Children().Append(_statusText);
+        if (HostOverlayEnabled())
+        {
+            stage = L"Create overlay";
+            auto overlay = StackPanel{};
+            overlay.Margin(ThicknessHelper::FromUniformLength(12.0));
+            overlay.Orientation(Orientation::Vertical);
+            overlay.HorizontalAlignment(HorizontalAlignment::Left);
+            overlay.VerticalAlignment(VerticalAlignment::Top);
 
-        stage = L"Attach overlay";
-        _layout.Children().Append(overlay);
+            auto titleText = TextBlock{};
+            titleText.Text(L"GhosttyHostV2");
+            titleText.FontSize(22.0);
+
+            auto subtitleText = TextBlock{};
+            subtitleText.Text(L"Terminal-style input and swapchain surface scaffold");
+            subtitleText.Opacity(0.82);
+
+            overlay.Children().Append(titleText);
+            overlay.Children().Append(subtitleText);
+            overlay.Children().Append(_versionText);
+            overlay.Children().Append(_statusText);
+
+            stage = L"Attach overlay";
+            _layout.Children().Append(overlay);
+        }
 
         stage = L"Attach layout to root";
         _root.Content(_layout);
@@ -217,17 +257,44 @@ bool GhosttyTerminalSurfaceV2::Initialize(HWND ownerWindow) noexcept
         {
             _SetStatus(L"Status: Runtime init skipped (GHOSTTY_SKIP_RUNTIME_INIT=1)");
         }
+        else if (swapChainReady)
+        {
+            stage = L"Wait for SwapChainPanel layout";
+            _runtimeInitDeferred = true;
+            _SetStatus(L"Status: Waiting for SwapChainPanel layout");
+
+            _swapChainSizeChangedToken = _swapChainPanel.SizeChanged(
+                [this](const IInspectable&, const SizeChangedEventArgs&) {
+                    _ApplyPanelMetrics();
+                    _TryInitializeGhosttyRuntimeOnLayout();
+                });
+            _swapChainSizeChangedRegistered = true;
+
+            _swapChainScaleChangedToken = _swapChainPanel.CompositionScaleChanged(
+                [this](const SwapChainPanel&, const IInspectable&) {
+                    _ApplyPanelMetrics();
+                    _TryInitializeGhosttyRuntimeOnLayout();
+                });
+            _swapChainScaleChangedRegistered = true;
+
+            auto revoker = _swapChainPanel.LayoutUpdated(
+                winrt::auto_revoke,
+                [this](const IInspectable&, const IInspectable&) {
+                    _TryInitializeGhosttyRuntimeOnLayout();
+                });
+            _swapChainLayoutUpdatedRevoker.swap(revoker);
+
+            // Attempt immediate init in case layout already happened.
+            _TryInitializeGhosttyRuntimeOnLayout();
+        }
         else if (!_InitializeGhosttyRuntime())
         {
             _SetStatus(L"Status: Runtime init failed (see logs)");
         }
-        else if (swapChainReady)
-        {
-            _SetStatus(L"Status: Runtime + surface ready");
-        }
         else
         {
-            _SetStatus(L"Status: Runtime + surface ready (swapchain unavailable; fallback surface active)");
+            _runtimeInitialized = true;
+            _SetStatus(L"Status: Runtime + surface ready (fallback surface active)");
         }
 
         return true;
@@ -264,6 +331,17 @@ bool GhosttyTerminalSurfaceV2::Initialize(HWND ownerWindow) noexcept
 
 void GhosttyTerminalSurfaceV2::Shutdown() noexcept
 {
+    if (_swapChainPanel && _swapChainSizeChangedRegistered)
+    {
+        _swapChainPanel.SizeChanged(_swapChainSizeChangedToken);
+    }
+    if (_swapChainPanel && _swapChainScaleChangedRegistered)
+    {
+        _swapChainPanel.CompositionScaleChanged(_swapChainScaleChangedToken);
+    }
+    _swapChainSizeChangedRegistered = false;
+    _swapChainScaleChangedRegistered = false;
+    _swapChainLayoutUpdatedRevoker.revoke();
     _ShutdownGhosttyRuntime();
 }
 
@@ -377,6 +455,68 @@ void GhosttyTerminalSurfaceV2::AttachSwapChainHandle(HANDLE swapChainHandle) noe
     }
 }
 
+void GhosttyTerminalSurfaceV2::_TryInitializeGhosttyRuntimeOnLayout() noexcept
+{
+    if (_runtimeInitialized || !_runtimeInitDeferred || !_swapChainPanel)
+    {
+        return;
+    }
+
+    const double widthDip = _swapChainPanel.ActualWidth();
+    const double heightDip = _swapChainPanel.ActualHeight();
+    const double scaleX = _swapChainPanel.CompositionScaleX();
+    const double scaleY = _swapChainPanel.CompositionScaleY();
+
+    if (widthDip <= 0.0 || heightDip <= 0.0 || scaleX <= 0.0 || scaleY <= 0.0)
+    {
+        return;
+    }
+
+    const uint32_t widthPx = static_cast<uint32_t>(std::llround(widthDip * scaleX));
+    const uint32_t heightPx = static_cast<uint32_t>(std::llround(heightDip * scaleY));
+    if (HostTraceEnabled())
+    {
+        std::cerr << "[host] panel layout ready actual=" << widthDip << "x" << heightDip
+                  << " scale=" << scaleX << "x" << scaleY
+                  << " pixels=" << widthPx << "x" << heightPx
+                  << std::endl;
+    }
+
+    if (!_InitializeGhosttyRuntime())
+    {
+        _runtimeInitDeferred = false;
+        _swapChainLayoutUpdatedRevoker.revoke();
+        _SetStatus(L"Status: Runtime init failed (see logs)");
+        return;
+    }
+
+    _runtimeInitialized = true;
+    _runtimeInitDeferred = false;
+    _swapChainLayoutUpdatedRevoker.revoke();
+    _ApplyPanelMetrics();
+    _SetStatus(L"Status: Runtime + surface ready");
+}
+
+void GhosttyTerminalSurfaceV2::_ApplyPanelMetrics() noexcept
+{
+    if (!_swapChainPanel)
+    {
+        return;
+    }
+
+    const double widthDip = _swapChainPanel.ActualWidth();
+    const double heightDip = _swapChainPanel.ActualHeight();
+    const double scale = _swapChainPanel.CompositionScaleX();
+    if (widthDip <= 0.0 || heightDip <= 0.0 || scale <= 0.0)
+    {
+        return;
+    }
+
+    const auto widthPx = static_cast<uint32_t>(std::llround(widthDip * scale));
+    const auto heightPx = static_cast<uint32_t>(std::llround(heightDip * scale));
+    SetSurfaceMetrics(widthPx, heightPx, scale);
+}
+
 bool GhosttyTerminalSurfaceV2::_InitializeGhosttyRuntime() noexcept
 {
     _ShutdownGhosttyRuntime();
@@ -445,7 +585,13 @@ bool GhosttyTerminalSurfaceV2::_InitializeGhosttyRuntime() noexcept
         const bool enableSurface = []() noexcept {
             wchar_t buf[8]{};
             const auto len = GetEnvironmentVariableW(L"GHOSTTY_ENABLE_SURFACE", buf, static_cast<DWORD>(std::size(buf)));
-            return len > 0 && buf[0] == L'1';
+            if (len == 0)
+            {
+                return true;
+            }
+
+            const wchar_t ch = buf[0];
+            return !(ch == L'0' || ch == L'f' || ch == L'F' || ch == L'n' || ch == L'N');
         }();
 
         if (!enableSurface)
@@ -459,6 +605,20 @@ bool GhosttyTerminalSurfaceV2::_InitializeGhosttyRuntime() noexcept
         auto surfaceConfig = ghostty_surface_config_new();
         surfaceConfig.platform_tag = GHOSTTY_PLATFORM_WINDOWS;
         surfaceConfig.platform.windows.hwnd = _ownerWindow;
+        surfaceConfig.platform.windows.swap_chain_panel = nullptr;
+        if (_swapChainPanel)
+        {
+            try
+            {
+                auto nativePanel = _swapChainPanel.as<ISwapChainPanelNative2>();
+                surfaceConfig.platform.windows.swap_chain_panel = nativePanel.get();
+            }
+            catch (...)
+            {
+                // If native panel interop is unavailable, continue without it.
+                surfaceConfig.platform.windows.swap_chain_panel = nullptr;
+            }
+        }
         surfaceConfig.userdata = this;
         surfaceConfig.scale_factor = static_cast<double>(GetDpiForWindow(_ownerWindow)) /
                                      static_cast<double>(USER_DEFAULT_SCREEN_DPI);
@@ -559,6 +719,8 @@ void GhosttyTerminalSurfaceV2::_ShutdownGhosttyRuntime() noexcept
     }
 
     _runtimeTickScheduled.store(false);
+    _runtimeInitialized = false;
+    _runtimeInitDeferred = false;
 }
 
 void GhosttyTerminalSurfaceV2::_ScheduleRuntimeTick() noexcept
@@ -655,8 +817,7 @@ bool GhosttyTerminalSurfaceV2::_RuntimeActionCallback(ghostty_app_t app, ghostty
         return true;
     }
 
-    // We don't have a Windows surface target yet. Accept actions and
-    // keep driving the app loop so state stays coherent.
+    // Accept actions and keep driving the app loop so state stays coherent.
     self->_ScheduleRuntimeTick();
     return true;
 }

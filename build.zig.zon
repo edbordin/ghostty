@@ -61,6 +61,11 @@
             .hash = "gobject-0.3.0-Skun7ANLnwDvEfIpVmohcppXgOvg_I6YOJFmPIsKfXk-",
             .lazy = true,
         },
+        .win32 = .{
+            .url = "git+https://github.com/marlersoft/zigwin32?ref=main#5587b16fa040573846a6bf531301f6206d31a6bf",
+            .hash = "zigwin32-25.0.28-preview-AAAAAICM5AMResOGQnQ85mfe60TTOQeMtt7GRATUOKoP",
+            .lazy = true,
+        },
 
         // C libs
         .dcimgui = .{ .path = "./pkg/dcimgui", .lazy = true },

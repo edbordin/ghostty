@@ -429,6 +429,8 @@ typedef struct {
 
 typedef struct {
   void* hwnd;
+  // Windows-only: expected to be ISwapChainPanelNative2* when using XAML SwapChainPanel hosting.
+  void* swap_chain_panel;
 } ghostty_platform_windows_s;
 
 typedef union {
