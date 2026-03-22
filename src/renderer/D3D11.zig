@@ -47,7 +47,6 @@ pub const BufferUsage = enum {
     dynamic_draw,
 };
 
-alloc: Allocator,
 blending: configpkg.Config.AlphaBlending,
 rt_surface: *apprt.Surface,
 swap_chain_panel: ?*anyopaque = null,
@@ -63,9 +62,9 @@ clear_color: [4]f32 = .{
 },
 present_calls: usize = 0,
 present_last_calls: usize = 0,
-frame_pixels: std.ArrayListUnmanaged(u8) = .{},
 capture: Capture = .{},
-compose_calls: usize = 0,
+pass_cleared: bool = false,
+text_drawn: bool = false,
 
 const Capture = struct {
     uniforms: ?BufferHandle = null,
@@ -145,8 +144,8 @@ pub fn init(alloc: Allocator, opts: rendererpkg.Options) error{}!D3D11 {
         .{ swap_chain_panel, initial_clear_color, initial_scale.x, initial_scale.y },
     );
 
+    _ = alloc;
     return .{
-        .alloc = alloc,
         .blending = opts.config.blending,
         .rt_surface = opts.rt_surface,
         .swap_chain_panel = swap_chain_panel,
@@ -158,7 +157,6 @@ pub fn init(alloc: Allocator, opts: rendererpkg.Options) error{}!D3D11 {
 }
 
 pub fn deinit(self: *D3D11) void {
-    self.frame_pixels.deinit(self.alloc);
     if (self.interop_ready) {
         self.interop.deinit();
     }
@@ -167,6 +165,8 @@ pub fn deinit(self: *D3D11) void {
 
 pub fn drawFrameStart(self: *D3D11) void {
     self.capture = .{};
+    self.pass_cleared = false;
+    self.text_drawn = false;
 }
 
 pub fn drawFrameEnd(self: *D3D11) void {
@@ -215,16 +215,13 @@ pub fn present(self: *D3D11, target: Target) !void {
             self.size.width,
             self.size.height,
         );
-        const composed = try self.composeFramePixels();
-        const presented = self.interop.presentFrame(
-            self.clear_color,
-            composed,
-            self.size.width,
-            self.size.height,
-        );
+        const presented = if (self.pass_cleared)
+            self.interop.presentOnly()
+        else
+            self.interop.presentClear(self.clear_color);
         if (self.present_calls <= 8 or !presented) {
             log.info(
-                "present call={} size={}x{} scale={d:.3}x{d:.3} resized={} presented={} composed={} clear={any}",
+                "present call={} size={}x{} scale={d:.3}x{d:.3} resized={} presented={} pass_cleared={} text_drawn={} clear={any}",
                 .{
                     self.present_calls,
                     self.size.width,
@@ -233,7 +230,8 @@ pub fn present(self: *D3D11, target: Target) !void {
                     scale.y,
                     resized,
                     presented,
-                    composed != null,
+                    self.pass_cleared,
+                    self.text_drawn,
                     self.clear_color,
                 },
             );
@@ -258,12 +256,7 @@ pub fn presentLastTarget(self: *D3D11) !void {
         self.size.width,
         self.size.height,
     );
-    const presented = self.interop.presentFrame(
-        self.clear_color,
-        null,
-        self.size.width,
-        self.size.height,
-    );
+    const presented = self.interop.presentOnly();
     if (self.present_last_calls <= 8 or !presented) {
         log.info(
             "presentLastTarget call={} size={}x{} scale={d:.3}x{d:.3} resized={} presented={} clear={any}",
@@ -307,6 +300,43 @@ fn updateInteropCompositionScale(self: *D3D11) apprt.ContentScale {
     return scale;
 }
 
+fn tryRenderTextGpu(self: *D3D11) bool {
+    const uniforms = self.capture.uniforms orelse return false;
+    const fg = self.capture.fg orelse return false;
+    const grayscale = self.capture.grayscale orelse return false;
+    if (uniforms.bytes.len < @sizeOf(shaderpkg.Uniforms)) return false;
+    if (fg.bytes.len == 0 or fg.stride == 0 or self.capture.instance_count == 0) return false;
+    if (fg.bytes.len < fg.stride * self.capture.instance_count) return false;
+
+    const grayscale_data = toAtlasData(grayscale) orelse return false;
+    const color_data = if (self.capture.color) |c| toAtlasData(c) else null;
+
+    return self.interop.drawTextFrame(.{
+        .clear_color = self.clear_color,
+        .uniforms = uniforms.bytes,
+        .cells = fg.bytes,
+        .cell_stride = @intCast(fg.stride),
+        .instance_count = @intCast(self.capture.instance_count),
+        .grayscale = grayscale_data,
+        .color = color_data,
+    });
+}
+
+fn toAtlasData(texture: Texture) ?interoppkg.AtlasData {
+    if (texture.width == 0 or texture.height == 0 or texture.data.len == 0) return null;
+    const format: interoppkg.AtlasFormat = switch (texture.format) {
+        .red => .red,
+        .rgba => .rgba,
+        .bgra => .bgra,
+    };
+    return .{
+        .pixels = texture.data,
+        .width = @intCast(texture.width),
+        .height = @intCast(texture.height),
+        .format = format,
+    };
+}
+
 pub fn captureUniformBuffer(self: *D3D11, uniforms: BufferHandle) void {
     self.capture.uniforms = uniforms;
 }
@@ -324,339 +354,38 @@ pub fn captureTextStep(self: *D3D11, capture: TextStepCapture) void {
     self.capture.instance_count = capture.instance_count;
 }
 
+pub fn beginRenderPass(self: *D3D11, clear_override: ?[4]f32) void {
+    if (clear_override) |clear| self.clear_color = clear;
+    if (self.pass_cleared) return;
+    if (!self.interop_ready) return;
+    if (self.size.width == 0 or self.size.height == 0) return;
+
+    _ = self.updateInteropCompositionScale();
+    _ = self.interop.resize(self.size.width, self.size.height);
+    self.pass_cleared = self.interop.clearRenderTarget(self.clear_color);
+}
+
+pub fn renderCapturedTextStep(self: *D3D11) void {
+    if (!self.pass_cleared) self.beginRenderPass(null);
+    const drawn = self.tryRenderTextGpu();
+    self.text_drawn = self.text_drawn or drawn;
+}
+
 pub fn beginFrame(
-    self: *const D3D11,
+    self: *D3D11,
     renderer: *Renderer,
     target: *Target,
 ) !Frame {
-    _ = self;
+    self.last_target = target.*;
+    self.size = .{
+        .width = @intCast(target.width),
+        .height = @intCast(target.height),
+    };
     return try Frame.begin(.{}, renderer, target);
 }
 
 pub fn surfaceInit(surface: *apprt.Surface) !void {
     _ = surface;
-}
-
-fn composeFramePixels(self: *D3D11) !?[]const u8 {
-    const uniforms_h = self.capture.uniforms orelse return null;
-    const uniforms = loadUniforms(uniforms_h) orelse return null;
-    const fg_h = self.capture.fg orelse return null;
-    if (fg_h.len == 0 or fg_h.bytes.len == 0) return null;
-
-    const width = self.size.width;
-    const height = self.size.height;
-    if (width == 0 or height == 0) return null;
-
-    const px_count: usize = @as(usize, width) * @as(usize, height);
-    const byte_count = px_count * 4;
-    try self.frame_pixels.resize(self.alloc, byte_count);
-    const pixels = self.frame_pixels.items;
-
-    const global_bg = uniforms.bg_color;
-    const global_bgra = premultipliedBGRA(.{
-        global_bg[0],
-        global_bg[1],
-        global_bg[2],
-        global_bg[3],
-    });
-
-    var i: usize = 0;
-    while (i < byte_count) : (i += 4) {
-        pixels[i + 0] = global_bgra[0];
-        pixels[i + 1] = global_bgra[1];
-        pixels[i + 2] = global_bgra[2];
-        pixels[i + 3] = 0xFF;
-    }
-
-    const cols: usize = uniforms.grid_size[0];
-    const rows: usize = uniforms.grid_size[1];
-    const cell_w: i32 = @max(1, @as(i32, @intFromFloat(@round(uniforms.cell_size[0]))));
-    const cell_h: i32 = @max(1, @as(i32, @intFromFloat(@round(uniforms.cell_size[1]))));
-    const pad_left: i32 = @as(i32, @intFromFloat(@round(uniforms.grid_padding[3])));
-    const pad_top: i32 = @as(i32, @intFromFloat(@round(uniforms.grid_padding[0])));
-
-    if (self.capture.bg) |bg_h| {
-        const bg_cells = cellBgBytes(bg_h);
-        const bg_count = @min(cols * rows, bg_cells.len / 4);
-        for (0..bg_count) |idx| {
-            const cx = idx % cols;
-            const cy = idx / cols;
-            const bg = .{
-                bg_cells[idx * 4 + 0],
-                bg_cells[idx * 4 + 1],
-                bg_cells[idx * 4 + 2],
-                bg_cells[idx * 4 + 3],
-            };
-            if (bg[3] == 0) continue;
-
-            const x0 = pad_left + @as(i32, @intCast(cx)) * cell_w;
-            const y0 = pad_top + @as(i32, @intCast(cy)) * cell_h;
-            fillRectBlend(
-                pixels,
-                @as(i32, @intCast(width)),
-                @as(i32, @intCast(height)),
-                x0,
-                y0,
-                cell_w,
-                cell_h,
-                premultipliedBGRA(bg),
-            );
-        }
-    }
-
-    const fg_cells = cellTextSlice(fg_h);
-    const fg_count = @min(self.capture.instance_count, fg_cells.len);
-    if (fg_count == 0) return pixels;
-
-    const grayscale = self.capture.grayscale;
-    const color = self.capture.color;
-    for (fg_cells[0..fg_count]) |cell| {
-        const glyph_w: i32 = @intCast(cell.glyph_size[0]);
-        const glyph_h: i32 = @intCast(cell.glyph_size[1]);
-        if (glyph_w <= 0 or glyph_h <= 0) continue;
-
-        const base_x = pad_left +
-            @as(i32, @intCast(cell.grid_pos[0])) * cell_w +
-            cell.bearings[0];
-        const base_y = pad_top +
-            @as(i32, @intCast(cell.grid_pos[1])) * cell_h +
-            (cell_h - cell.bearings[1]);
-
-        switch (cell.atlas) {
-            .grayscale => if (grayscale) |atlas| {
-                drawGrayscaleGlyph(
-                    pixels,
-                    @as(i32, @intCast(width)),
-                    @as(i32, @intCast(height)),
-                    atlas,
-                    cell,
-                    base_x,
-                    base_y,
-                );
-            },
-            .color => if (color) |atlas| {
-                drawColorGlyph(
-                    pixels,
-                    @as(i32, @intCast(width)),
-                    @as(i32, @intCast(height)),
-                    atlas,
-                    cell,
-                    base_x,
-                    base_y,
-                );
-            },
-        }
-    }
-
-    self.compose_calls += 1;
-    if (self.compose_calls <= 8) {
-        var non_bg_pixels: usize = 0;
-        var px_i: usize = 0;
-        while (px_i < byte_count) : (px_i += 4) {
-            if (pixels[px_i + 0] != global_bgra[0] or
-                pixels[px_i + 1] != global_bgra[1] or
-                pixels[px_i + 2] != global_bgra[2])
-            {
-                non_bg_pixels += 1;
-            }
-        }
-        log.info(
-            "composed text frame call={} fg_count={} non_bg_pixels={} grid={}x{} cell={}x{}",
-            .{
-                self.compose_calls,
-                fg_count,
-                non_bg_pixels,
-                cols,
-                rows,
-                cell_w,
-                cell_h,
-            },
-        );
-    }
-
-    return pixels;
-}
-
-fn loadUniforms(handle: BufferHandle) ?shaderpkg.Uniforms {
-    if (handle.bytes.len < @sizeOf(shaderpkg.Uniforms)) return null;
-    const ptr: *const shaderpkg.Uniforms = @ptrCast(@alignCast(handle.bytes.ptr));
-    return ptr.*;
-}
-
-fn cellBgBytes(handle: BufferHandle) []const u8 {
-    if (handle.stride != @sizeOf(shaderpkg.CellBg)) return &.{};
-    return handle.bytes;
-}
-
-fn cellTextSlice(handle: BufferHandle) []const shaderpkg.CellText {
-    if (handle.stride != @sizeOf(shaderpkg.CellText)) return &.{};
-    if (handle.bytes.len < @sizeOf(shaderpkg.CellText)) return &.{};
-    const count = @min(handle.len, handle.bytes.len / @sizeOf(shaderpkg.CellText));
-    if (count == 0) return &.{};
-    const ptr: [*]const shaderpkg.CellText = @ptrCast(@alignCast(handle.bytes.ptr));
-    return ptr[0..count];
-}
-
-fn fillRectBlend(
-    pixels: []u8,
-    width: i32,
-    height: i32,
-    x: i32,
-    y: i32,
-    w: i32,
-    h: i32,
-    src_bgra: [4]u8,
-) void {
-    if (w <= 0 or h <= 0) return;
-    const x0 = @max(0, x);
-    const y0 = @max(0, y);
-    const x1 = @min(width, x + w);
-    const y1 = @min(height, y + h);
-    if (x1 <= x0 or y1 <= y0) return;
-
-    var py = y0;
-    while (py < y1) : (py += 1) {
-        var px = x0;
-        while (px < x1) : (px += 1) {
-            blendPixel(pixels, width, px, py, src_bgra);
-        }
-    }
-}
-
-fn drawGrayscaleGlyph(
-    pixels: []u8,
-    width: i32,
-    height: i32,
-    atlas: Texture,
-    cell: shaderpkg.CellText,
-    base_x: i32,
-    base_y: i32,
-) void {
-    if (atlas.format != .red) return;
-    if (atlas.width == 0 or atlas.height == 0) return;
-
-    const glyph_w: i32 = @intCast(cell.glyph_size[0]);
-    const glyph_h: i32 = @intCast(cell.glyph_size[1]);
-    const src_x0: i32 = @intCast(cell.glyph_pos[0]);
-    const src_y0: i32 = @intCast(cell.glyph_pos[1]);
-
-    var gy: i32 = 0;
-    while (gy < glyph_h) : (gy += 1) {
-        const sy = src_y0 + gy;
-        const dy = base_y + gy;
-        if (dy < 0 or dy >= height) continue;
-        if (sy < 0 or sy >= @as(i32, @intCast(atlas.height))) continue;
-
-        var gx: i32 = 0;
-        while (gx < glyph_w) : (gx += 1) {
-            const sx = src_x0 + gx;
-            const dx = base_x + gx;
-            if (dx < 0 or dx >= width) continue;
-            if (sx < 0 or sx >= @as(i32, @intCast(atlas.width))) continue;
-
-            const sidx = @as(usize, @intCast(sy)) * atlas.width + @as(usize, @intCast(sx));
-            const mask_alpha = atlas.data[sidx];
-            if (mask_alpha == 0) continue;
-
-            const src_alpha: u32 = (@as(u32, mask_alpha) * @as(u32, cell.color[3])) / 255;
-            if (src_alpha == 0) continue;
-            const src_bgra = .{
-                @as(u8, @intCast((@as(u32, cell.color[2]) * src_alpha) / 255)),
-                @as(u8, @intCast((@as(u32, cell.color[1]) * src_alpha) / 255)),
-                @as(u8, @intCast((@as(u32, cell.color[0]) * src_alpha) / 255)),
-                @as(u8, @intCast(src_alpha)),
-            };
-            blendPixel(pixels, width, dx, dy, src_bgra);
-        }
-    }
-}
-
-fn drawColorGlyph(
-    pixels: []u8,
-    width: i32,
-    height: i32,
-    atlas: Texture,
-    cell: shaderpkg.CellText,
-    base_x: i32,
-    base_y: i32,
-) void {
-    if (atlas.format != .bgra and atlas.format != .rgba) return;
-    if (atlas.width == 0 or atlas.height == 0) return;
-    const bpp = Texture.bytesPerPixel(atlas.format);
-    if (bpp != 4) return;
-
-    const glyph_w: i32 = @intCast(cell.glyph_size[0]);
-    const glyph_h: i32 = @intCast(cell.glyph_size[1]);
-    const src_x0: i32 = @intCast(cell.glyph_pos[0]);
-    const src_y0: i32 = @intCast(cell.glyph_pos[1]);
-
-    var gy: i32 = 0;
-    while (gy < glyph_h) : (gy += 1) {
-        const sy = src_y0 + gy;
-        const dy = base_y + gy;
-        if (dy < 0 or dy >= height) continue;
-        if (sy < 0 or sy >= @as(i32, @intCast(atlas.height))) continue;
-
-        var gx: i32 = 0;
-        while (gx < glyph_w) : (gx += 1) {
-            const sx = src_x0 + gx;
-            const dx = base_x + gx;
-            if (dx < 0 or dx >= width) continue;
-            if (sx < 0 or sx >= @as(i32, @intCast(atlas.width))) continue;
-
-            const sidx = (@as(usize, @intCast(sy)) * atlas.width + @as(usize, @intCast(sx))) * 4;
-            const src = if (atlas.format == .bgra)
-                [4]u8{
-                    atlas.data[sidx + 0],
-                    atlas.data[sidx + 1],
-                    atlas.data[sidx + 2],
-                    atlas.data[sidx + 3],
-                }
-            else
-                [4]u8{
-                    atlas.data[sidx + 2],
-                    atlas.data[sidx + 1],
-                    atlas.data[sidx + 0],
-                    atlas.data[sidx + 3],
-                };
-            if (src[3] == 0) continue;
-            blendPixel(pixels, width, dx, dy, src);
-        }
-    }
-}
-
-fn blendPixel(
-    pixels: []u8,
-    width: i32,
-    x: i32,
-    y: i32,
-    src_bgra: [4]u8,
-) void {
-    const idx = (@as(usize, @intCast(y)) * @as(usize, @intCast(width)) + @as(usize, @intCast(x))) * 4;
-    const src_a: u32 = src_bgra[3];
-    if (src_a == 255) {
-        pixels[idx + 0] = src_bgra[0];
-        pixels[idx + 1] = src_bgra[1];
-        pixels[idx + 2] = src_bgra[2];
-        pixels[idx + 3] = 0xFF;
-        return;
-    }
-
-    const inv_a: u32 = 255 - src_a;
-    pixels[idx + 0] = @as(u8, @intCast(@as(u32, src_bgra[0]) + (@as(u32, pixels[idx + 0]) * inv_a) / 255));
-    pixels[idx + 1] = @as(u8, @intCast(@as(u32, src_bgra[1]) + (@as(u32, pixels[idx + 1]) * inv_a) / 255));
-    pixels[idx + 2] = @as(u8, @intCast(@as(u32, src_bgra[2]) + (@as(u32, pixels[idx + 2]) * inv_a) / 255));
-    pixels[idx + 3] = 0xFF;
-}
-
-fn premultipliedBGRA(rgba: [4]u8) [4]u8 {
-    const a: u32 = rgba[3];
-    return .{
-        @as(u8, @intCast((@as(u32, rgba[2]) * a) / 255)),
-        @as(u8, @intCast((@as(u32, rgba[1]) * a) / 255)),
-        @as(u8, @intCast((@as(u32, rgba[0]) * a) / 255)),
-        rgba[3],
-    };
 }
 
 pub fn finalizeSurfaceInit(self: *const D3D11, surface: *apprt.Surface) !void {

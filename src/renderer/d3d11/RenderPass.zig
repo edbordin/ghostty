@@ -49,13 +49,14 @@ pub fn begin(opts: Options) Self {
 }
 
 pub fn step(self: *Self, s: Step) void {
-    // This is the first rendering logic slice for the D3D11 backend:
-    // consume pass clear state and the frame bg color from uniforms so
-    // present() uses renderer-driven colors instead of a fixed constant.
+    // Consume clear state from the first step and begin the pass on the
+    // swap chain render target. This keeps render sequencing aligned with
+    // generic.zig's Frame/RenderPass flow.
     if (self.step_number == 0) {
+        var attachment_clear: ?[4]f32 = null;
         if (self.attachments.len > 0) {
             if (self.attachments[0].clear_color) |clear| {
-                self.renderer.api.setPassClearColor(clear);
+                attachment_clear = clear;
             }
         }
 
@@ -64,6 +65,8 @@ pub fn step(self: *Self, s: Step) void {
                 self.renderer.api.setPassClearColorFromU8(bg);
             }
         }
+
+        self.renderer.api.beginRenderPass(attachment_clear);
     }
 
     switch (s.pipeline.kind) {
@@ -99,6 +102,7 @@ pub fn step(self: *Self, s: Step) void {
                 .color = color,
                 .instance_count = s.draw.instance_count,
             });
+            self.renderer.api.renderCapturedTextStep();
         },
         else => {},
     }

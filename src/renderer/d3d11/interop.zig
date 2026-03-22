@@ -3,37 +3,103 @@ const std = @import("std");
 
 const win32 = if (builtin.os.tag == .windows) @import("win32").everything else struct {};
 const win32ext = if (builtin.os.tag == .windows) @import("win32ext.zig") else struct {};
-
-// TODO: Research whether zwindows offers a cleaner binding for
-// ISwapChainPanelNative/SetSwapChain so this manual COM shape can go away.
-const ISwapChainPanelNative = if (builtin.os.tag == .windows) extern union {
-    pub const VTable = extern struct {
-        base: win32.IUnknown.VTable,
-        SetSwapChain: *const fn (
-            self: *const ISwapChainPanelNative,
-            swap_chain: ?*win32.IDXGISwapChain,
-        ) callconv(.winapi) win32.HRESULT,
+const swapchainpanel = if (builtin.os.tag == .windows) @import("swap_chain_panel.zig") else struct {
+    pub fn setSwapChain(swap_chain_panel: *anyopaque, swap_chain: *anyopaque) bool {
+        _ = swap_chain_panel;
+        _ = swap_chain;
+        return false;
+    }
+};
+const textinterop = if (builtin.os.tag == .windows) @import("interop_text.zig") else struct {
+    pub const UniformPrefix = extern struct {
+        projection: [16]f32,
+        screen_size: [2]f32,
+        cell_size: [2]f32,
     };
 
-    vtable: *const VTable,
-    IUnknown: win32.IUnknown,
-
-    pub fn SetSwapChain(
-        self: *const ISwapChainPanelNative,
-        swap_chain: ?*win32.IDXGISwapChain,
-    ) callconv(.@"inline") win32.HRESULT {
-        return self.vtable.SetSwapChain(self, swap_chain);
+    pub fn ensureTextPipeline(self: anytype) bool {
+        _ = self;
+        return false;
     }
-} else struct {};
+
+    pub fn updateTextConstants(self: anytype, uniforms: []const u8) bool {
+        _ = self;
+        _ = uniforms;
+        return false;
+    }
+
+    pub fn updateInstanceBuffer(
+        self: anytype,
+        cells: []const u8,
+        stride: u32,
+        count: u32,
+    ) bool {
+        _ = self;
+        _ = cells;
+        _ = stride;
+        _ = count;
+        return false;
+    }
+
+    pub fn updateAtlas(self: anytype, atlas: anytype, data: anytype) bool {
+        _ = self;
+        _ = atlas;
+        _ = data;
+        return false;
+    }
+
+    pub fn releaseTextPipeline(self: anytype) void {
+        _ = self;
+    }
+};
+
+pub const AtlasFormat = enum {
+    red,
+    rgba,
+    bgra,
+};
+
+pub const AtlasData = struct {
+    pixels: []const u8,
+    width: u32,
+    height: u32,
+    format: AtlasFormat,
+};
+
+pub const TextFrameInput = struct {
+    clear_color: [4]f32,
+    uniforms: []const u8,
+    cells: []const u8,
+    cell_stride: u32,
+    instance_count: u32,
+    grayscale: ?AtlasData = null,
+    color: ?AtlasData = null,
+};
 
 pub const State = if (builtin.os.tag == .windows) struct {
+    const AtlasTexture = struct {
+        texture: ?*win32.ID3D11Texture2D = null,
+        view: ?*win32.ID3D11ShaderResourceView = null,
+        width: u32 = 0,
+        height: u32 = 0,
+        format: AtlasFormat = .red,
+    };
+
     device: ?*win32.ID3D11Device = null,
     context: ?*win32.ID3D11DeviceContext = null,
     swap_chain: ?*win32.IDXGISwapChain1 = null,
     swap_chain2: ?*win32.IDXGISwapChain2 = null,
     render_target: ?*win32.ID3D11RenderTargetView = null,
-    frame_texture: ?*win32.ID3D11Texture2D = null,
-    frame_texture_valid: bool = false,
+    text_vs: ?*win32.ID3D11VertexShader = null,
+    text_ps: ?*win32.ID3D11PixelShader = null,
+    text_input_layout: ?*win32.ID3D11InputLayout = null,
+    text_blend: ?*win32.ID3D11BlendState = null,
+    text_constants: ?*win32.ID3D11Buffer = null,
+    text_instances: ?*win32.ID3D11Buffer = null,
+    text_instance_capacity: u32 = 0,
+    atlas_gray: AtlasTexture = .{},
+    atlas_color: AtlasTexture = .{},
+    text_ready: bool = false,
     composition_scale_x: f32 = 1.0,
     composition_scale_y: f32 = 1.0,
     width: u32 = 0,
@@ -63,13 +129,12 @@ pub const State = if (builtin.os.tag == .windows) struct {
     }
 
     pub fn deinit(self: *State) void {
-        win32ext.releaseAndNull(win32.ID3D11Texture2D, &self.frame_texture);
+        textinterop.releaseTextPipeline(self);
         win32ext.releaseAndNull(win32.ID3D11RenderTargetView, &self.render_target);
         win32ext.releaseAndNull(win32.IDXGISwapChain2, &self.swap_chain2);
         win32ext.releaseAndNull(win32.IDXGISwapChain1, &self.swap_chain);
         win32ext.releaseAndNull(win32.ID3D11DeviceContext, &self.context);
         win32ext.releaseAndNull(win32.ID3D11Device, &self.device);
-        self.frame_texture_valid = false;
         self.width = 0;
         self.height = 0;
     }
@@ -115,7 +180,6 @@ pub const State = if (builtin.os.tag == .windows) struct {
 
         _ = self.applyCompositionScaleTransform();
         if (!self.createRenderTarget()) return false;
-        if (!self.ensureFrameTexture(width, height)) return false;
 
         self.width = width;
         self.height = height;
@@ -123,7 +187,23 @@ pub const State = if (builtin.os.tag == .windows) struct {
     }
 
     pub fn presentClear(self: *State, clear_color: [4]f32) bool {
-        return self.presentFrame(clear_color, null, self.width, self.height);
+        if (!self.clearRenderTarget(clear_color)) return false;
+        return self.presentOnly();
+    }
+
+    pub fn clearRenderTarget(self: *State, clear_color: [4]f32) bool {
+        if (self.context == null or self.render_target == null) return false;
+        var target = self.render_target.?;
+        self.context.?.OMSetRenderTargets(
+            1,
+            @ptrCast(&target),
+            null,
+        );
+        self.context.?.ClearRenderTargetView(
+            target,
+            @ptrCast(&clear_color),
+        );
+        return true;
     }
 
     pub fn presentFrame(
@@ -133,39 +213,93 @@ pub const State = if (builtin.os.tag == .windows) struct {
         width: u32,
         height: u32,
     ) bool {
-        if (self.context == null or self.swap_chain == null or self.render_target == null) {
-            return false;
-        }
+        _ = pixels;
+        _ = width;
+        _ = height;
+        return self.presentClear(clear_color);
+    }
 
-        if (pixels) |data| {
-            if (data.len > 0 and width > 0 and height > 0) {
-                if (!self.uploadFramePixels(data, width, height)) return false;
-            }
-        }
-
-        if (self.frame_texture_valid) {
-            var null_target: ?*win32.ID3D11RenderTargetView = null;
-            self.context.?.OMSetRenderTargets(
-                1,
-                @ptrCast(&null_target),
-                null,
-            );
-            self.drawFrameTexture();
-        } else {
-            var target = self.render_target.?;
-            self.context.?.OMSetRenderTargets(
-                1,
-                @ptrCast(&target),
-                null,
-            );
-            self.context.?.ClearRenderTargetView(
-                self.render_target.?,
-                @ptrCast(&clear_color),
-            );
-        }
-
+    pub fn presentOnly(self: *State) bool {
+        if (self.swap_chain == null) return false;
         const hr = self.swap_chain.?.IDXGISwapChain.Present(1, 0);
         return hr >= 0 or hr == win32.DXGI_STATUS_OCCLUDED;
+    }
+
+    pub fn renderTextFrame(self: *State, input: TextFrameInput) bool {
+        if (!self.clearRenderTarget(input.clear_color)) return false;
+        if (input.instance_count > 0 and !self.drawTextFrame(input)) return false;
+        return self.presentOnly();
+    }
+
+    pub fn drawTextFrame(self: *State, input: TextFrameInput) bool {
+        if (self.context == null or self.swap_chain == null or self.render_target == null) return false;
+        if (input.instance_count == 0) return true;
+        if (input.cell_stride == 0) return false;
+        if (input.uniforms.len < @sizeOf(textinterop.UniformPrefix)) return false;
+        if (input.cells.len < @as(usize, input.cell_stride) * @as(usize, input.instance_count)) return false;
+        const grayscale = input.grayscale orelse return false;
+        if (grayscale.width == 0 or grayscale.height == 0) return false;
+
+        if (!textinterop.ensureTextPipeline(self)) return false;
+        if (!textinterop.updateTextConstants(self, input.uniforms)) return false;
+        if (!textinterop.updateInstanceBuffer(self, input.cells, input.cell_stride, input.instance_count)) return false;
+        if (!textinterop.updateAtlas(self, &self.atlas_gray, grayscale)) return false;
+        if (input.color) |atlas| {
+            if (!textinterop.updateAtlas(self, &self.atlas_color, atlas)) return false;
+        }
+
+        var target = self.render_target.?;
+        self.context.?.OMSetRenderTargets(1, @ptrCast(&target), null);
+
+        var viewport = win32.D3D11_VIEWPORT{
+            .TopLeftX = 0,
+            .TopLeftY = 0,
+            .Width = @floatFromInt(self.width),
+            .Height = @floatFromInt(self.height),
+            .MinDepth = 0.0,
+            .MaxDepth = 1.0,
+        };
+        self.context.?.RSSetViewports(1, @ptrCast(&viewport));
+
+        self.context.?.IASetInputLayout(self.text_input_layout);
+        self.context.?.IASetPrimitiveTopology(win32.D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+        var vb = self.text_instances;
+        const strides = [_]u32{input.cell_stride};
+        const offsets = [_]u32{0};
+        self.context.?.IASetVertexBuffers(
+            0,
+            1,
+            @ptrCast(&vb),
+            strides[0..].ptr,
+            offsets[0..].ptr,
+        );
+
+        self.context.?.VSSetShader(self.text_vs, null, 0);
+        self.context.?.PSSetShader(self.text_ps, null, 0);
+
+        var cb = self.text_constants;
+        self.context.?.VSSetConstantBuffers(0, 1, @ptrCast(&cb));
+
+        var srvs = [_]?*win32.ID3D11ShaderResourceView{
+            self.atlas_gray.view,
+            self.atlas_color.view,
+        };
+        self.context.?.PSSetShaderResources(0, srvs.len, srvs[0..].ptr);
+
+        const blend_factor = [_]f32{ 0.0, 0.0, 0.0, 0.0 };
+        self.context.?.OMSetBlendState(
+            self.text_blend,
+            &blend_factor[0],
+            0xFFFF_FFFF,
+        );
+
+        self.context.?.DrawInstanced(4, input.instance_count, 0, 0);
+
+        var null_srvs = [_]?*win32.ID3D11ShaderResourceView{ null, null };
+        self.context.?.PSSetShaderResources(0, null_srvs.len, null_srvs[0..].ptr);
+
+        return true;
     }
 
     fn createDevice(self: *State) bool {
@@ -343,7 +477,7 @@ pub const State = if (builtin.os.tag == .windows) struct {
             return false;
         }
 
-        if (!setSwapChainOnPanel(swap_chain_panel.?, swap_chain)) {
+        if (!swapchainpanel.setSwapChain(swap_chain_panel.?, swap_chain)) {
             _ = swap_chain2.?.IUnknown.Release();
             _ = swap_chain.IUnknown.Release();
             return false;
@@ -354,8 +488,7 @@ pub const State = if (builtin.os.tag == .windows) struct {
         self.width = width;
         self.height = height;
         _ = self.applyCompositionScaleTransform();
-        if (!self.createRenderTarget()) return false;
-        return self.ensureFrameTexture(width, height);
+        return self.createRenderTarget();
     }
 
     fn createRenderTarget(self: *State) bool {
@@ -379,75 +512,6 @@ pub const State = if (builtin.os.tag == .windows) struct {
         if (rtv_hr < 0 or rtv == null) return false;
         self.render_target = rtv;
         return true;
-    }
-
-    fn ensureFrameTexture(self: *State, width: u32, height: u32) bool {
-        if (self.device == null or width == 0 or height == 0) return false;
-
-        if (self.frame_texture) |tex| {
-            var desc: win32.D3D11_TEXTURE2D_DESC = undefined;
-            tex.GetDesc(&desc);
-            if (desc.Width == width and desc.Height == height) return true;
-        }
-
-        win32ext.releaseAndNull(win32.ID3D11Texture2D, &self.frame_texture);
-        self.frame_texture_valid = false;
-
-        var texture: ?*win32.ID3D11Texture2D = null;
-        const desc: win32.D3D11_TEXTURE2D_DESC = .{
-            .Width = width,
-            .Height = height,
-            .MipLevels = 1,
-            .ArraySize = 1,
-            .Format = win32.DXGI_FORMAT_B8G8R8A8_UNORM,
-            .SampleDesc = .{ .Count = 1, .Quality = 0 },
-            .Usage = .DEFAULT,
-            .BindFlags = .{},
-            .CPUAccessFlags = .{},
-            .MiscFlags = .{},
-        };
-        const texture_hr = self.device.?.CreateTexture2D(&desc, null, @ptrCast(&texture));
-        if (texture_hr < 0 or texture == null) return false;
-        self.frame_texture = texture;
-        return true;
-    }
-
-    fn uploadFramePixels(self: *State, pixels: []const u8, width: u32, height: u32) bool {
-        if (self.context == null) return false;
-        if (!self.ensureFrameTexture(width, height)) return false;
-        if (self.frame_texture == null) return false;
-
-        const expected = @as(usize, width) * @as(usize, height) * 4;
-        if (pixels.len < expected) return false;
-
-        self.context.?.UpdateSubresource(
-            @ptrCast(&self.frame_texture.?.ID3D11Resource),
-            0,
-            null,
-            @ptrCast(pixels.ptr),
-            width * 4,
-            0,
-        );
-        self.frame_texture_valid = true;
-        return true;
-    }
-
-    fn drawFrameTexture(self: *State) void {
-        if (self.context == null or self.swap_chain == null or self.frame_texture == null) return;
-
-        var back_buffer: *win32.ID3D11Texture2D = undefined;
-        const hr = self.swap_chain.?.IDXGISwapChain.GetBuffer(
-            0,
-            win32.IID_ID3D11Texture2D,
-            @ptrCast(&back_buffer),
-        );
-        if (hr < 0) return;
-        defer _ = back_buffer.IUnknown.Release();
-
-        self.context.?.CopyResource(
-            @ptrCast(&back_buffer.ID3D11Resource),
-            @ptrCast(&self.frame_texture.?.ID3D11Resource),
-        );
     }
 
     fn applyCompositionScaleTransform(self: *State) bool {
@@ -503,6 +567,12 @@ pub const State = if (builtin.os.tag == .windows) struct {
         return false;
     }
 
+    pub fn clearRenderTarget(self: *State, clear_color: [4]f32) bool {
+        _ = self;
+        _ = clear_color;
+        return false;
+    }
+
     pub fn presentFrame(
         self: *State,
         clear_color: [4]f32,
@@ -518,6 +588,23 @@ pub const State = if (builtin.os.tag == .windows) struct {
         return false;
     }
 
+    pub fn presentOnly(self: *State) bool {
+        _ = self;
+        return false;
+    }
+
+    pub fn renderTextFrame(self: *State, input: TextFrameInput) bool {
+        _ = self;
+        _ = input;
+        return false;
+    }
+
+    pub fn drawTextFrame(self: *State, input: TextFrameInput) bool {
+        _ = self;
+        _ = input;
+        return false;
+    }
+
     pub fn setCompositionScale(self: *State, scale_x: f32, scale_y: f32) bool {
         _ = self;
         _ = scale_x;
@@ -525,13 +612,3 @@ pub const State = if (builtin.os.tag == .windows) struct {
         return false;
     }
 };
-
-fn setSwapChainOnPanel(
-    swap_chain_panel: *anyopaque,
-    swap_chain: *win32.IDXGISwapChain1,
-) bool {
-    const panel_native: *ISwapChainPanelNative = @ptrCast(@alignCast(swap_chain_panel));
-    const swap_chain_base: *win32.IDXGISwapChain = @ptrCast(swap_chain);
-    const hr = panel_native.SetSwapChain(swap_chain_base);
-    return hr >= 0;
-}
