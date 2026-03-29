@@ -3,7 +3,6 @@ const WasmTarget = @import("../os/wasm/target.zig").Target;
 
 /// Possible implementations, used for build options.
 pub const Backend = enum {
-    noop,
     d3d11,
     opengl,
     metal,

@@ -5,8 +5,6 @@ const dxgi = zw.dxgi;
 
 panel: *anyopaque,
 
-// TODO: Research whether zwindows offers a cleaner binding for
-// ISwapChainPanelNative/SetSwapChain so this manual COM shape can go away.
 const ISwapChainPanelNative = extern union {
     pub const VTable = extern struct {
         base: zw.IUnknown.VTable,
