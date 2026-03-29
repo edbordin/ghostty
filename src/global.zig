@@ -184,7 +184,7 @@ pub const GlobalState = struct {
         try internal_os.ensureLocale(self.alloc);
         trace("ensureLocale complete");
 
-        // Initialize glslang for shader compilation
+        // Initialize glslang for shader compilation.
         try glslang.init();
         trace("glslang init complete");
 

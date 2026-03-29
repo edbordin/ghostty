@@ -422,8 +422,8 @@ pub fn add(
     if (b.lazyDependency("opengl", .{})) |dep| {
         step.root_module.addImport("opengl", dep.module("opengl"));
     }
-    if (b.lazyDependency("win32", .{})) |dep| {
-        step.root_module.addImport("win32", dep.module("win32"));
+    if (b.lazyDependency("zwindows", .{})) |dep| {
+        step.root_module.addImport("zwindows", dep.module("zwindows"));
     }
     if (b.lazyDependency("vaxis", .{})) |dep| {
         step.root_module.addImport("vaxis", dep.module("vaxis"));

@@ -49,13 +49,17 @@ fn buildSpirvCross(
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
 ) !*std.Build.Step.Compile {
+    const linkage: std.builtin.LinkMode = if (target.result.os.tag == .windows)
+        .dynamic
+    else
+        .static;
     const lib = b.addLibrary(.{
         .name = "spirv_cross",
         .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
         }),
-        .linkage = .static,
+        .linkage = linkage,
     });
     lib.linkLibC();
     lib.linkLibCpp();
@@ -69,6 +73,7 @@ fn buildSpirvCross(
     try flags.appendSlice(b.allocator, &.{
         "-DSPIRV_CROSS_C_API_GLSL=1",
         "-DSPIRV_CROSS_C_API_MSL=1",
+        "-DSPIRV_CROSS_C_API_HLSL=1",
 
         "-fno-sanitize=undefined",
         "-fno-sanitize-trap=undefined",
@@ -76,6 +81,9 @@ fn buildSpirvCross(
 
     if (target.result.os.tag == .freebsd or target.result.abi == .musl) {
         try flags.append(b.allocator, "-fPIC");
+    }
+    if (target.result.os.tag == .windows) {
+        try flags.append(b.allocator, "-DSPVC_EXPORT_SYMBOLS");
     }
 
     if (b.lazyDependency("spirv_cross", .{})) |upstream| {
@@ -99,6 +107,9 @@ fn buildSpirvCross(
 
                 // MSL
                 "spirv_msl.cpp",
+
+                // HLSL
+                "spirv_hlsl.cpp",
             },
         });
 

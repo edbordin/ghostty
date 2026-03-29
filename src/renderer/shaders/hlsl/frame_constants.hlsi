@@ -1,0 +1,15 @@
+cbuffer FrameConstants : register(b0)
+{
+    float4x4 projection_matrix;
+    float2 screen_size;
+    float2 cell_size;
+    uint grid_size_packed_2u16;
+    float4 grid_padding;
+    uint padding_extend;
+    float min_contrast;
+    uint cursor_pos_packed_2u16;
+    uint cursor_color_packed_4u8;
+    uint bg_color_packed_4u8;
+    uint bools;
+    uint2 _pad0;
+};

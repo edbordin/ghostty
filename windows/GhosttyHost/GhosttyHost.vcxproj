@@ -40,8 +40,8 @@
   <Import Project="..\GhosttyDev.props" />
 
   <PropertyGroup>
-    <OutDir>$(SolutionDir)bin\$(Configuration)\x64\</OutDir>
-    <IntDir>$(SolutionDir)obj\$(ProjectName)\$(Configuration)\x64\</IntDir>
+    <OutDir>$(GhosttyWindowsDir)bin\$(Configuration)\$(Platform)\</OutDir>
+    <IntDir>$(GhosttyWindowsDir)obj\$(ProjectName)\$(Configuration)\$(Platform)\</IntDir>
     <TargetName>GhosttyHost</TargetName>
     <GenerateManifest>true</GenerateManifest>
     <EmbedManifest>true</EmbedManifest>
@@ -66,7 +66,9 @@
       <AdditionalDependencies>$(GhosttyImportLibPath);runtimeobject.lib;windowsapp.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(GhosttyDllPath)" "$(OutDir)ghostty.dll" &gt;NUL</Command>
+      <Command>copy /Y "$(GhosttyDllPath)" "$(OutDir)ghostty.dll" &gt;NUL
+if exist "$(GhosttyGlslangDllPath)" copy /Y "$(GhosttyGlslangDllPath)" "$(OutDir)glslang.dll" &gt;NUL
+if exist "$(GhosttySpirvCrossDllPath)" copy /Y "$(GhosttySpirvCrossDllPath)" "$(OutDir)spirv_cross.dll" &gt;NUL</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
 

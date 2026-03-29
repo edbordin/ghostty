@@ -4579,7 +4579,7 @@ pub fn finalize(self: *Config) !void {
                 .windows => {
                     if (self.command == null) {
                         log.warn("no default shell found, will default to using cmd", .{});
-                        self.command = .{ .shell = "cmd.exe" };
+                        self.command = .{ .shell = "bash.exe" };
                     }
 
                     if (wd == .home) {

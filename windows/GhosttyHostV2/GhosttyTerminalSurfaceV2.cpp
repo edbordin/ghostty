@@ -1,6 +1,7 @@
 #include "GhosttyTerminalSurfaceV2.h"
 
 #include <windows.ui.xaml.media.dxinterop.h>
+#include <dbghelp.h>
 
 #include <cmath>
 #include <cstdint>
@@ -26,11 +27,217 @@ using namespace winrt::Windows::UI::Xaml::Media;
 
 namespace
 {
+    static void LogSurfaceInitException(EXCEPTION_POINTERS* exceptionPointers) noexcept
+    {
+        if (!exceptionPointers || !exceptionPointers->ExceptionRecord)
+        {
+            return;
+        }
+
+        const EXCEPTION_RECORD* record = exceptionPointers->ExceptionRecord;
+        const void* exceptionAddress = record->ExceptionAddress;
+        const DWORD exceptionCode = record->ExceptionCode;
+
+        std::cerr << "[host] surface init exception detail tid=" << GetCurrentThreadId()
+                  << " code=0x"
+                  << std::hex << std::uppercase << exceptionCode
+                  << " addr=" << exceptionAddress
+                  << std::dec << std::nouppercase << std::endl;
+
+        HMODULE module = nullptr;
+        if (GetModuleHandleExA(
+                GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                    GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                static_cast<LPCSTR>(exceptionAddress),
+                &module) &&
+            module != nullptr)
+        {
+            char modulePath[MAX_PATH] = {};
+            if (GetModuleFileNameA(module, modulePath, MAX_PATH) > 0)
+            {
+                const uintptr_t base = reinterpret_cast<uintptr_t>(module);
+                const uintptr_t addr = reinterpret_cast<uintptr_t>(exceptionAddress);
+                std::cerr << "[host] exception module=" << modulePath
+                          << " offset=0x" << std::hex << std::uppercase
+                          << (addr - base) << std::dec << std::nouppercase
+                          << std::endl;
+            }
+        }
+
+        HANDLE process = GetCurrentProcess();
+        static LONG symInitState = 0;
+        if (InterlockedCompareExchange(&symInitState, 1, 0) == 0)
+        {
+            SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_UNDNAME | SYMOPT_LOAD_LINES);
+            if (!SymInitialize(process, nullptr, TRUE))
+            {
+                symInitState = -1;
+            }
+        }
+        if (symInitState < 0 || !exceptionPointers->ContextRecord)
+        {
+            return;
+        }
+
+        CONTEXT context = *exceptionPointers->ContextRecord;
+        STACKFRAME64 frame = {};
+        DWORD machine = 0;
+#if defined(_M_X64)
+        machine = IMAGE_FILE_MACHINE_AMD64;
+        frame.AddrPC.Offset = context.Rip;
+        frame.AddrFrame.Offset = context.Rbp;
+        frame.AddrStack.Offset = context.Rsp;
+#elif defined(_M_IX86)
+        machine = IMAGE_FILE_MACHINE_I386;
+        frame.AddrPC.Offset = context.Eip;
+        frame.AddrFrame.Offset = context.Ebp;
+        frame.AddrStack.Offset = context.Esp;
+#else
+        return;
+#endif
+        frame.AddrPC.Mode = AddrModeFlat;
+        frame.AddrFrame.Mode = AddrModeFlat;
+        frame.AddrStack.Mode = AddrModeFlat;
+
+        std::cerr << "[host] surface init callstack begin" << std::endl;
+        for (int i = 0; i < 40; ++i)
+        {
+            if (!StackWalk64(
+                    machine,
+                    process,
+                    GetCurrentThread(),
+                    &frame,
+                    &context,
+                    nullptr,
+                    SymFunctionTableAccess64,
+                    SymGetModuleBase64,
+                    nullptr))
+            {
+                break;
+            }
+            if (frame.AddrPC.Offset == 0)
+            {
+                break;
+            }
+
+            const DWORD64 addr = frame.AddrPC.Offset;
+            char symBuffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME] = {};
+            PSYMBOL_INFO sym = reinterpret_cast<PSYMBOL_INFO>(symBuffer);
+            sym->SizeOfStruct = sizeof(SYMBOL_INFO);
+            sym->MaxNameLen = MAX_SYM_NAME;
+
+            DWORD64 symDisplacement = 0;
+            const BOOL hasSym = SymFromAddr(process, addr, &symDisplacement, sym);
+
+            IMAGEHLP_LINE64 line = {};
+            line.SizeOfStruct = sizeof(line);
+            DWORD lineDisplacement = 0;
+            const BOOL hasLine = SymGetLineFromAddr64(process, addr, &lineDisplacement, &line);
+
+            IMAGEHLP_MODULE64 moduleInfo = {};
+            moduleInfo.SizeOfStruct = sizeof(moduleInfo);
+            const BOOL hasModule = SymGetModuleInfo64(process, addr, &moduleInfo);
+
+            std::cerr << "  #" << i << " 0x" << std::hex << std::uppercase << addr
+                      << std::dec << std::nouppercase;
+            if (hasSym)
+            {
+                std::cerr << " " << sym->Name << "+0x" << std::hex << std::uppercase
+                          << symDisplacement << std::dec << std::nouppercase;
+            }
+            if (hasLine)
+            {
+                std::cerr << " (" << line.FileName << ":" << line.LineNumber << ")";
+            }
+            if (hasModule && moduleInfo.ImageName)
+            {
+                std::cerr << " [" << moduleInfo.ImageName << "]";
+            }
+            std::cerr << std::endl;
+        }
+        std::cerr << "[host] surface init callstack end" << std::endl;
+    }
+
+    static int CaptureSurfaceInitException(
+        EXCEPTION_POINTERS* exceptionPointers,
+        DWORD* exceptionCode) noexcept
+    {
+        DWORD code = 0;
+        if (exceptionPointers && exceptionPointers->ExceptionRecord)
+        {
+            code = exceptionPointers->ExceptionRecord->ExceptionCode;
+        }
+        if (exceptionCode)
+        {
+            *exceptionCode = code;
+        }
+        LogSurfaceInitException(exceptionPointers);
+
+        // Best-effort minidump for debugging surface init faults.
+        wchar_t tempPath[MAX_PATH] = {};
+        const DWORD tempLen = GetTempPathW(MAX_PATH, tempPath);
+        if (tempLen > 0 && tempLen < MAX_PATH)
+        {
+            std::wstringstream fileName;
+            fileName << tempPath
+                     << L"ghostty_surface_new_"
+                     << static_cast<unsigned long>(GetCurrentProcessId())
+                     << L"_"
+                     << static_cast<unsigned long>(GetTickCount())
+                     << L".dmp";
+
+            const std::wstring dumpPath = fileName.str();
+            HANDLE dumpFile = CreateFileW(
+                dumpPath.c_str(),
+                GENERIC_WRITE,
+                0,
+                nullptr,
+                CREATE_ALWAYS,
+                FILE_ATTRIBUTE_NORMAL,
+                nullptr);
+            if (dumpFile != INVALID_HANDLE_VALUE)
+            {
+                MINIDUMP_EXCEPTION_INFORMATION dumpExceptionInfo = {};
+                dumpExceptionInfo.ThreadId = GetCurrentThreadId();
+                dumpExceptionInfo.ExceptionPointers = exceptionPointers;
+                dumpExceptionInfo.ClientPointers = FALSE;
+
+                const BOOL wrote = MiniDumpWriteDump(
+                    GetCurrentProcess(),
+                    GetCurrentProcessId(),
+                    dumpFile,
+                    static_cast<MINIDUMP_TYPE>(
+                        MiniDumpWithDataSegs |
+                        MiniDumpWithUnloadedModules |
+                        MiniDumpWithThreadInfo),
+                    exceptionPointers ? &dumpExceptionInfo : nullptr,
+                    nullptr,
+                    nullptr);
+                const DWORD dumpErr = wrote ? 0 : GetLastError();
+                CloseHandle(dumpFile);
+
+                if (wrote)
+                {
+                    std::wcerr << L"[host] wrote surface init dump: " << dumpPath << std::endl;
+                }
+                else
+                {
+                    std::wcerr << L"[host] failed to write surface init dump (" << dumpErr
+                               << L"): " << dumpPath << std::endl;
+                }
+            }
+        }
+
+        return EXCEPTION_EXECUTE_HANDLER;
+    }
+
     static ghostty_surface_t TryCreateGhosttySurface(
         ghostty_app_t app,
         const ghostty_surface_config_s* config,
         DWORD* exceptionCode) noexcept
     {
+        std::cerr << "[host] TryCreateGhosttySurface tid=" << GetCurrentThreadId()
+                  << std::endl;
         if (exceptionCode)
         {
             *exceptionCode = 0;
@@ -41,12 +248,8 @@ namespace
         {
             return ghostty_surface_new(app, config);
         }
-        __except (EXCEPTION_EXECUTE_HANDLER)
+        __except (CaptureSurfaceInitException(GetExceptionInformation(), exceptionCode))
         {
-            if (exceptionCode)
-            {
-                *exceptionCode = GetExceptionCode();
-            }
             return nullptr;
         }
 #else
@@ -117,8 +320,8 @@ namespace
 
         if (len == 0)
         {
-            cached = 1;
-            return true;
+            cached = 0;
+            return false;
         }
 
         const wchar_t ch = buf[0];
@@ -158,6 +361,7 @@ bool GhosttyTerminalSurfaceV2::Initialize(HWND ownerWindow) noexcept
     _lastError.clear();
     _runtimeInitialized = false;
     _runtimeInitDeferred = false;
+    _runtimeInitInProgress = false;
     _swapChainSizeChangedRegistered = false;
     _swapChainScaleChangedRegistered = false;
     std::wstring stage = L"Create root controls";
@@ -266,14 +470,12 @@ bool GhosttyTerminalSurfaceV2::Initialize(HWND ownerWindow) noexcept
             _swapChainSizeChangedToken = _swapChainPanel.SizeChanged(
                 [this](const IInspectable&, const SizeChangedEventArgs&) {
                     _ApplyPanelMetrics();
-                    _TryInitializeGhosttyRuntimeOnLayout();
                 });
             _swapChainSizeChangedRegistered = true;
 
             _swapChainScaleChangedToken = _swapChainPanel.CompositionScaleChanged(
                 [this](const SwapChainPanel&, const IInspectable&) {
                     _ApplyPanelMetrics();
-                    _TryInitializeGhosttyRuntimeOnLayout();
                 });
             _swapChainScaleChangedRegistered = true;
 
@@ -294,6 +496,7 @@ bool GhosttyTerminalSurfaceV2::Initialize(HWND ownerWindow) noexcept
         else
         {
             _runtimeInitialized = true;
+            _ScheduleRuntimeTick();
             _SetStatus(L"Status: Runtime + surface ready (fallback surface active)");
         }
 
@@ -352,12 +555,21 @@ bool GhosttyTerminalSurfaceV2::PumpRuntimeTick() noexcept
         return false;
     }
 
-    _runtimeTickScheduled.store(false);
-    ghostty_app_tick(_ghosttyApp);
-    if (_ghosttySurface)
+    // Drain a short burst of pending runtime work in one host wakeup.
+    // This reduces key-repeat/input burstiness when many wakeups are
+    // coalesced into a single posted message.
+    constexpr int maxBurstTicks = 8;
+    for (int i = 0; i < maxBurstTicks; ++i)
     {
-        ghostty_surface_draw(_ghosttySurface);
+        _runtimeTickScheduled.store(false);
+        ghostty_app_tick(_ghosttyApp);
+
+        if (!_runtimeTickScheduled.exchange(false))
+        {
+            break;
+        }
     }
+
     return true;
 }
 
@@ -386,8 +598,28 @@ void GhosttyTerminalSurfaceV2::SetSurfaceMetrics(uint32_t widthPx, uint32_t heig
         return;
     }
 
+    constexpr double scaleEpsilon = 0.0001;
+    const bool sameMetrics = _hasSurfaceMetrics &&
+        _surfaceWidthPx == widthPx &&
+        _surfaceHeightPx == heightPx &&
+        std::abs(_surfaceScaleX - scaleX) < scaleEpsilon &&
+        std::abs(_surfaceScaleY - scaleY) < scaleEpsilon;
+    if (sameMetrics)
+    {
+        return;
+    }
+
     ghostty_surface_set_content_scale(_ghosttySurface, scaleX, scaleY);
     ghostty_surface_set_size(_ghosttySurface, widthPx, heightPx);
+    _surfaceWidthPx = widthPx;
+    _surfaceHeightPx = heightPx;
+    _surfaceScaleX = scaleX;
+    _surfaceScaleY = scaleY;
+    _hasSurfaceMetrics = true;
+
+    // Coalesce rendering via the runtime wakeup path instead of forcing
+    // synchronous draw work in high-frequency resize callbacks.
+    ghostty_surface_refresh(_ghosttySurface);
 }
 
 bool GhosttyTerminalSurfaceV2::OnDirectKeyEvent(uint32_t vkey, uint8_t scanCode, bool down) noexcept
@@ -457,7 +689,7 @@ void GhosttyTerminalSurfaceV2::AttachSwapChainHandle(HANDLE swapChainHandle) noe
 
 void GhosttyTerminalSurfaceV2::_TryInitializeGhosttyRuntimeOnLayout() noexcept
 {
-    if (_runtimeInitialized || !_runtimeInitDeferred || !_swapChainPanel)
+    if (_runtimeInitialized || !_runtimeInitDeferred || _runtimeInitInProgress || !_swapChainPanel)
     {
         return;
     }
@@ -482,7 +714,11 @@ void GhosttyTerminalSurfaceV2::_TryInitializeGhosttyRuntimeOnLayout() noexcept
                   << std::endl;
     }
 
-    if (!_InitializeGhosttyRuntime())
+    _runtimeInitInProgress = true;
+    const auto initialized = _InitializeGhosttyRuntime();
+    _runtimeInitInProgress = false;
+
+    if (!initialized)
     {
         _runtimeInitDeferred = false;
         _swapChainLayoutUpdatedRevoker.revoke();
@@ -494,6 +730,7 @@ void GhosttyTerminalSurfaceV2::_TryInitializeGhosttyRuntimeOnLayout() noexcept
     _runtimeInitDeferred = false;
     _swapChainLayoutUpdatedRevoker.revoke();
     _ApplyPanelMetrics();
+    _ScheduleRuntimeTick();
     _SetStatus(L"Status: Runtime + surface ready");
 }
 
@@ -520,10 +757,12 @@ void GhosttyTerminalSurfaceV2::_ApplyPanelMetrics() noexcept
 
 bool GhosttyTerminalSurfaceV2::_InitializeGhosttyRuntime() noexcept
 {
-    _ShutdownGhosttyRuntime();
-
     const wchar_t* stage = L"ghostty_config_new";
-    if (HostTraceEnabled()) std::cerr << "[host] runtime_init begin" << std::endl;
+    if (HostTraceEnabled())
+    {
+        std::cerr << "[host] runtime_init begin tid=" << GetCurrentThreadId()
+                  << std::endl;
+    }
 
     try
     {
@@ -578,10 +817,13 @@ bool GhosttyTerminalSurfaceV2::_InitializeGhosttyRuntime() noexcept
         {
             if (HostTraceEnabled()) std::cerr << "[host] runtime_init failed at ghostty_app_new (null app)" << std::endl;
             _lastError = L"Ghostty runtime init failed.\nStage: ghostty_app_new\nResult: null app";
-            _ShutdownGhosttyRuntime();
             return false;
         }
-        if (HostTraceEnabled()) std::cerr << "[host] runtime_init app created ptr=" << _ghosttyApp << std::endl;
+        if (HostTraceEnabled())
+        {
+            std::cerr << "[host] runtime_init app created ptr=" << _ghosttyApp
+                      << " tid=" << GetCurrentThreadId() << std::endl;
+        }
 
         const bool enableSurface = []() noexcept {
             wchar_t buf[8]{};
@@ -629,14 +871,23 @@ bool GhosttyTerminalSurfaceV2::_InitializeGhosttyRuntime() noexcept
         surfaceConfig.scale_factor = initialScale;
 
         DWORD surfaceExceptionCode = 0;
-        _ghosttySurface = TryCreateGhosttySurface(_ghosttyApp, &surfaceConfig, &surfaceExceptionCode);
+        if (HostTraceEnabled())
+        {
+            std::cerr << "[host] runtime_init calling ghostty_surface_new tid="
+                      << GetCurrentThreadId() << std::endl;
+        }
+        _ghosttySurface = TryCreateGhosttySurface(
+            _ghosttyApp,
+            &surfaceConfig,
+            &surfaceExceptionCode);
         if (surfaceExceptionCode != 0)
         {
             if (HostTraceEnabled())
             {
                 std::cerr << "[host] runtime_init ghostty_surface_new raised SEH 0x"
                           << std::hex << std::uppercase << surfaceExceptionCode
-                          << std::dec << std::nouppercase << std::endl;
+                          << std::dec << std::nouppercase
+                          << " tid=" << GetCurrentThreadId() << std::endl;
             }
             std::wstringstream ss;
             ss << L"Ghostty runtime init failed.\nStage: ghostty_surface_new\n";
@@ -653,10 +904,13 @@ bool GhosttyTerminalSurfaceV2::_InitializeGhosttyRuntime() noexcept
         {
             if (HostTraceEnabled()) std::cerr << "[host] runtime_init failed at ghostty_surface_new (null surface)" << std::endl;
             _lastError = L"Ghostty runtime init failed.\nStage: ghostty_surface_new\nResult: null surface";
-            _ShutdownGhosttyRuntime();
             return false;
         }
-        if (HostTraceEnabled()) std::cerr << "[host] runtime_init surface created ptr=" << _ghosttySurface << std::endl;
+        if (HostTraceEnabled())
+        {
+            std::cerr << "[host] runtime_init surface created ptr=" << _ghosttySurface
+                      << " tid=" << GetCurrentThreadId() << std::endl;
+        }
 
         const auto diagnostics = ghostty_config_diagnostics_count(_ghosttyConfig);
         if (diagnostics > 0)
@@ -682,7 +936,6 @@ bool GhosttyTerminalSurfaceV2::_InitializeGhosttyRuntime() noexcept
         ss << L"Stage: " << stage << L"\n";
         ss << L"std::exception: " << to_hstring(ex.what()).c_str();
         _lastError = ss.str();
-        _ShutdownGhosttyRuntime();
         return false;
     }
     catch (...)
@@ -698,7 +951,6 @@ bool GhosttyTerminalSurfaceV2::_InitializeGhosttyRuntime() noexcept
         ss << L"Stage: " << stage << L"\n";
         ss << L"Unknown exception";
         _lastError = ss.str();
-        _ShutdownGhosttyRuntime();
         return false;
     }
 }
@@ -726,6 +978,8 @@ void GhosttyTerminalSurfaceV2::_ShutdownGhosttyRuntime() noexcept
     _runtimeTickScheduled.store(false);
     _runtimeInitialized = false;
     _runtimeInitDeferred = false;
+    _runtimeInitInProgress = false;
+    _hasSurfaceMetrics = false;
 }
 
 void GhosttyTerminalSurfaceV2::_ScheduleRuntimeTick() noexcept
@@ -906,15 +1160,30 @@ void GhosttyTerminalSurfaceV2::_WireInputHandlers() noexcept
 void GhosttyTerminalSurfaceV2::_OnCharacter(const CharacterReceivedRoutedEventArgs& e) noexcept
 {
     const uint32_t codepoint = static_cast<uint32_t>(e.Character());
+    // Control characters (e.g. Backspace, Enter, Escape) are handled via
+    // KeyDown/KeyUp. Avoid forwarding them through CharacterReceived to
+    // prevent duplicate key traffic and input burst behavior.
+    if ((codepoint < 0x20u && codepoint != 0x09u) || codepoint == 0x7Fu)
+    {
+        return;
+    }
+
     const std::string text = Utf8FromCodepoint(codepoint);
     const auto keyStatus = e.KeyStatus();
     const bool handled = _SendKeyToGhostty(keyStatus.ScanCode, true, text.empty() ? nullptr : text.c_str(), codepoint);
+    if (handled)
+    {
+        _ScheduleRuntimeTick();
+    }
 
-    std::wstringstream ss;
-    ss << L"Status: Character U+" << std::hex << std::uppercase << codepoint
-       << L" scan=" << std::dec << keyStatus.ScanCode
-       << L" ghostty=" << (handled ? L"handled" : L"pass");
-    _SetStatus(ss.str());
+    if (HostOverlayEnabled())
+    {
+        std::wstringstream ss;
+        ss << L"Status: Character U+" << std::hex << std::uppercase << codepoint
+           << L" scan=" << std::dec << keyStatus.ScanCode
+           << L" ghostty=" << (handled ? L"handled" : L"pass");
+        _SetStatus(ss.str());
+    }
     e.Handled(handled);
 }
 
@@ -922,7 +1191,14 @@ void GhosttyTerminalSurfaceV2::_OnKey(const KeyRoutedEventArgs& e, bool keyDown)
 {
     const auto keyStatus = e.KeyStatus();
     const bool handled = _SendKeyToGhostty(keyStatus.ScanCode, keyDown);
-    _SetStatus(L"Status: " + DescribeKeyEvent(e, keyDown) + L" ghostty=" + (handled ? std::wstring{ L"handled" } : std::wstring{ L"pass" }));
+    if (handled && keyDown)
+    {
+        _ScheduleRuntimeTick();
+    }
+    if (HostOverlayEnabled())
+    {
+        _SetStatus(L"Status: " + DescribeKeyEvent(e, keyDown) + L" ghostty=" + (handled ? std::wstring{ L"handled" } : std::wstring{ L"pass" }));
+    }
     e.Handled(handled);
 }
 

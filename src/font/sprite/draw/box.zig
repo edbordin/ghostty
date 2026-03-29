@@ -1,14 +1,14 @@
 //! Box Drawing | U+2500...U+257F
 //! https://en.wikipedia.org/wiki/Box_Drawing
 //!
-//! ─━│┃┄┅┆┇┈┉┊┋┌┍┎┏
-//! ┐┑┒┓└┕┖┗┘┙┚┛├┝┞┟
-//! ┠┡┢┣┤┥┦┧┨┩┪┫┬┭┮┯
-//! ┰┱┲┳┴┵┶┷┸┹┺┻┼┽┾┿
-//! ╀╁╂╃╄╅╆╇╈╉╊╋╌╍╎╏
-//! ═║╒╓╔╕╖╗╘╙╚╛╜╝╞╟
-//! ╠╡╢╣╤╥╦╧╨╩╪╫╬╭╮╯
-//! ╰╱╲╳╴╵╶╷╸╹╺╻╼╽╾╿
+//! â”€â”â”‚â”ƒâ”„â”…â”†â”‡â”ˆâ”‰â”Šâ”‹â”Œâ”â”Žâ”
+//! â”â”‘â”’â”“â””â”•â”–â”—â”˜â”™â”šâ”›â”œâ”â”žâ”Ÿ
+//! â” â”¡â”¢â”£â”¤â”¥â”¦â”§â”¨â”©â”ªâ”«â”¬â”­â”®â”¯
+//! â”°â”±â”²â”³â”´â”µâ”¶â”·â”¸â”¹â”ºâ”»â”¼â”½â”¾â”¿
+//! â•€â•â•‚â•ƒâ•„â•…â•†â•‡â•ˆâ•‰â•Šâ•‹â•Œâ•â•Žâ•
+//! â•â•‘â•’â•“â•”â••â•–â•—â•˜â•™â•šâ•›â•œâ•â•žâ•Ÿ
+//! â• â•¡â•¢â•£â•¤â•¥â•¦â•§â•¨â•©â•ªâ•«â•¬â•­â•®â•¯
+//! â•°â•±â•²â•³â•´â•µâ•¶â•·â•¸â•¹â•ºâ•»â•¼â•½â•¾â•¿
 //!
 
 const std = @import("std");
@@ -56,15 +56,15 @@ pub fn draw2500_257F(
     _ = height;
 
     switch (cp) {
-        // '─'
+        // 'â”€'
         0x2500 => linesChar(metrics, canvas, .{ .left = .light, .right = .light }),
-        // '━'
+        // 'â”'
         0x2501 => linesChar(metrics, canvas, .{ .left = .heavy, .right = .heavy }),
-        // '│'
+        // 'â”‚'
         0x2502 => linesChar(metrics, canvas, .{ .up = .light, .down = .light }),
-        // '┃'
+        // 'â”ƒ'
         0x2503 => linesChar(metrics, canvas, .{ .up = .heavy, .down = .heavy }),
-        // '┄'
+        // 'â”„'
         0x2504 => dashHorizontal(
             metrics,
             canvas,
@@ -72,7 +72,7 @@ pub fn draw2500_257F(
             Thickness.light.height(metrics.box_thickness),
             @max(4, Thickness.light.height(metrics.box_thickness)),
         ),
-        // '┅'
+        // 'â”…'
         0x2505 => dashHorizontal(
             metrics,
             canvas,
@@ -80,7 +80,7 @@ pub fn draw2500_257F(
             Thickness.heavy.height(metrics.box_thickness),
             @max(4, Thickness.light.height(metrics.box_thickness)),
         ),
-        // '┆'
+        // 'â”†'
         0x2506 => dashVertical(
             metrics,
             canvas,
@@ -88,7 +88,7 @@ pub fn draw2500_257F(
             Thickness.light.height(metrics.box_thickness),
             @max(4, Thickness.light.height(metrics.box_thickness)),
         ),
-        // '┇'
+        // 'â”‡'
         0x2507 => dashVertical(
             metrics,
             canvas,
@@ -96,7 +96,7 @@ pub fn draw2500_257F(
             Thickness.heavy.height(metrics.box_thickness),
             @max(4, Thickness.light.height(metrics.box_thickness)),
         ),
-        // '┈'
+        // 'â”ˆ'
         0x2508 => dashHorizontal(
             metrics,
             canvas,
@@ -104,7 +104,7 @@ pub fn draw2500_257F(
             Thickness.light.height(metrics.box_thickness),
             @max(4, Thickness.light.height(metrics.box_thickness)),
         ),
-        // '┉'
+        // 'â”‰'
         0x2509 => dashHorizontal(
             metrics,
             canvas,
@@ -112,7 +112,7 @@ pub fn draw2500_257F(
             Thickness.heavy.height(metrics.box_thickness),
             @max(4, Thickness.light.height(metrics.box_thickness)),
         ),
-        // '┊'
+        // 'â”Š'
         0x250a => dashVertical(
             metrics,
             canvas,
@@ -120,7 +120,7 @@ pub fn draw2500_257F(
             Thickness.light.height(metrics.box_thickness),
             @max(4, Thickness.light.height(metrics.box_thickness)),
         ),
-        // '┋'
+        // 'â”‹'
         0x250b => dashVertical(
             metrics,
             canvas,
@@ -128,139 +128,139 @@ pub fn draw2500_257F(
             Thickness.heavy.height(metrics.box_thickness),
             @max(4, Thickness.light.height(metrics.box_thickness)),
         ),
-        // '┌'
+        // 'â”Œ'
         0x250c => linesChar(metrics, canvas, .{ .down = .light, .right = .light }),
-        // '┍'
+        // 'â”'
         0x250d => linesChar(metrics, canvas, .{ .down = .light, .right = .heavy }),
-        // '┎'
+        // 'â”Ž'
         0x250e => linesChar(metrics, canvas, .{ .down = .heavy, .right = .light }),
-        // '┏'
+        // 'â”'
         0x250f => linesChar(metrics, canvas, .{ .down = .heavy, .right = .heavy }),
 
-        // '┐'
+        // 'â”'
         0x2510 => linesChar(metrics, canvas, .{ .down = .light, .left = .light }),
-        // '┑'
+        // 'â”‘'
         0x2511 => linesChar(metrics, canvas, .{ .down = .light, .left = .heavy }),
-        // '┒'
+        // 'â”’'
         0x2512 => linesChar(metrics, canvas, .{ .down = .heavy, .left = .light }),
-        // '┓'
+        // 'â”“'
         0x2513 => linesChar(metrics, canvas, .{ .down = .heavy, .left = .heavy }),
-        // '└'
+        // 'â””'
         0x2514 => linesChar(metrics, canvas, .{ .up = .light, .right = .light }),
-        // '┕'
+        // 'â”•'
         0x2515 => linesChar(metrics, canvas, .{ .up = .light, .right = .heavy }),
-        // '┖'
+        // 'â”–'
         0x2516 => linesChar(metrics, canvas, .{ .up = .heavy, .right = .light }),
-        // '┗'
+        // 'â”—'
         0x2517 => linesChar(metrics, canvas, .{ .up = .heavy, .right = .heavy }),
-        // '┘'
+        // 'â”˜'
         0x2518 => linesChar(metrics, canvas, .{ .up = .light, .left = .light }),
-        // '┙'
+        // 'â”™'
         0x2519 => linesChar(metrics, canvas, .{ .up = .light, .left = .heavy }),
-        // '┚'
+        // 'â”š'
         0x251a => linesChar(metrics, canvas, .{ .up = .heavy, .left = .light }),
-        // '┛'
+        // 'â”›'
         0x251b => linesChar(metrics, canvas, .{ .up = .heavy, .left = .heavy }),
-        // '├'
+        // 'â”œ'
         0x251c => linesChar(metrics, canvas, .{ .up = .light, .down = .light, .right = .light }),
-        // '┝'
+        // 'â”'
         0x251d => linesChar(metrics, canvas, .{ .up = .light, .down = .light, .right = .heavy }),
-        // '┞'
+        // 'â”ž'
         0x251e => linesChar(metrics, canvas, .{ .up = .heavy, .right = .light, .down = .light }),
-        // '┟'
+        // 'â”Ÿ'
         0x251f => linesChar(metrics, canvas, .{ .down = .heavy, .right = .light, .up = .light }),
 
-        // '┠'
+        // 'â” '
         0x2520 => linesChar(metrics, canvas, .{ .up = .heavy, .down = .heavy, .right = .light }),
-        // '┡'
+        // 'â”¡'
         0x2521 => linesChar(metrics, canvas, .{ .down = .light, .right = .heavy, .up = .heavy }),
-        // '┢'
+        // 'â”¢'
         0x2522 => linesChar(metrics, canvas, .{ .up = .light, .right = .heavy, .down = .heavy }),
-        // '┣'
+        // 'â”£'
         0x2523 => linesChar(metrics, canvas, .{ .up = .heavy, .down = .heavy, .right = .heavy }),
-        // '┤'
+        // 'â”¤'
         0x2524 => linesChar(metrics, canvas, .{ .up = .light, .down = .light, .left = .light }),
-        // '┥'
+        // 'â”¥'
         0x2525 => linesChar(metrics, canvas, .{ .up = .light, .down = .light, .left = .heavy }),
-        // '┦'
+        // 'â”¦'
         0x2526 => linesChar(metrics, canvas, .{ .up = .heavy, .left = .light, .down = .light }),
-        // '┧'
+        // 'â”§'
         0x2527 => linesChar(metrics, canvas, .{ .down = .heavy, .left = .light, .up = .light }),
-        // '┨'
+        // 'â”¨'
         0x2528 => linesChar(metrics, canvas, .{ .up = .heavy, .down = .heavy, .left = .light }),
-        // '┩'
+        // 'â”©'
         0x2529 => linesChar(metrics, canvas, .{ .down = .light, .left = .heavy, .up = .heavy }),
-        // '┪'
+        // 'â”ª'
         0x252a => linesChar(metrics, canvas, .{ .up = .light, .left = .heavy, .down = .heavy }),
-        // '┫'
+        // 'â”«'
         0x252b => linesChar(metrics, canvas, .{ .up = .heavy, .down = .heavy, .left = .heavy }),
-        // '┬'
+        // 'â”¬'
         0x252c => linesChar(metrics, canvas, .{ .down = .light, .left = .light, .right = .light }),
-        // '┭'
+        // 'â”­'
         0x252d => linesChar(metrics, canvas, .{ .left = .heavy, .right = .light, .down = .light }),
-        // '┮'
+        // 'â”®'
         0x252e => linesChar(metrics, canvas, .{ .right = .heavy, .left = .light, .down = .light }),
-        // '┯'
+        // 'â”¯'
         0x252f => linesChar(metrics, canvas, .{ .down = .light, .left = .heavy, .right = .heavy }),
 
-        // '┰'
+        // 'â”°'
         0x2530 => linesChar(metrics, canvas, .{ .down = .heavy, .left = .light, .right = .light }),
-        // '┱'
+        // 'â”±'
         0x2531 => linesChar(metrics, canvas, .{ .right = .light, .left = .heavy, .down = .heavy }),
-        // '┲'
+        // 'â”²'
         0x2532 => linesChar(metrics, canvas, .{ .left = .light, .right = .heavy, .down = .heavy }),
-        // '┳'
+        // 'â”³'
         0x2533 => linesChar(metrics, canvas, .{ .down = .heavy, .left = .heavy, .right = .heavy }),
-        // '┴'
+        // 'â”´'
         0x2534 => linesChar(metrics, canvas, .{ .up = .light, .left = .light, .right = .light }),
-        // '┵'
+        // 'â”µ'
         0x2535 => linesChar(metrics, canvas, .{ .left = .heavy, .right = .light, .up = .light }),
-        // '┶'
+        // 'â”¶'
         0x2536 => linesChar(metrics, canvas, .{ .right = .heavy, .left = .light, .up = .light }),
-        // '┷'
+        // 'â”·'
         0x2537 => linesChar(metrics, canvas, .{ .up = .light, .left = .heavy, .right = .heavy }),
-        // '┸'
+        // 'â”¸'
         0x2538 => linesChar(metrics, canvas, .{ .up = .heavy, .left = .light, .right = .light }),
-        // '┹'
+        // 'â”¹'
         0x2539 => linesChar(metrics, canvas, .{ .right = .light, .left = .heavy, .up = .heavy }),
-        // '┺'
+        // 'â”º'
         0x253a => linesChar(metrics, canvas, .{ .left = .light, .right = .heavy, .up = .heavy }),
-        // '┻'
+        // 'â”»'
         0x253b => linesChar(metrics, canvas, .{ .up = .heavy, .left = .heavy, .right = .heavy }),
-        // '┼'
+        // 'â”¼'
         0x253c => linesChar(metrics, canvas, .{ .up = .light, .down = .light, .left = .light, .right = .light }),
-        // '┽'
+        // 'â”½'
         0x253d => linesChar(metrics, canvas, .{ .left = .heavy, .right = .light, .up = .light, .down = .light }),
-        // '┾'
+        // 'â”¾'
         0x253e => linesChar(metrics, canvas, .{ .right = .heavy, .left = .light, .up = .light, .down = .light }),
-        // '┿'
+        // 'â”¿'
         0x253f => linesChar(metrics, canvas, .{ .up = .light, .down = .light, .left = .heavy, .right = .heavy }),
 
-        // '╀'
+        // 'â•€'
         0x2540 => linesChar(metrics, canvas, .{ .up = .heavy, .down = .light, .left = .light, .right = .light }),
-        // '╁'
+        // 'â•'
         0x2541 => linesChar(metrics, canvas, .{ .down = .heavy, .up = .light, .left = .light, .right = .light }),
-        // '╂'
+        // 'â•‚'
         0x2542 => linesChar(metrics, canvas, .{ .up = .heavy, .down = .heavy, .left = .light, .right = .light }),
-        // '╃'
+        // 'â•ƒ'
         0x2543 => linesChar(metrics, canvas, .{ .left = .heavy, .up = .heavy, .right = .light, .down = .light }),
-        // '╄'
+        // 'â•„'
         0x2544 => linesChar(metrics, canvas, .{ .right = .heavy, .up = .heavy, .left = .light, .down = .light }),
-        // '╅'
+        // 'â•…'
         0x2545 => linesChar(metrics, canvas, .{ .left = .heavy, .down = .heavy, .right = .light, .up = .light }),
-        // '╆'
+        // 'â•†'
         0x2546 => linesChar(metrics, canvas, .{ .right = .heavy, .down = .heavy, .left = .light, .up = .light }),
-        // '╇'
+        // 'â•‡'
         0x2547 => linesChar(metrics, canvas, .{ .down = .light, .up = .heavy, .left = .heavy, .right = .heavy }),
-        // '╈'
+        // 'â•ˆ'
         0x2548 => linesChar(metrics, canvas, .{ .up = .light, .down = .heavy, .left = .heavy, .right = .heavy }),
-        // '╉'
+        // 'â•‰'
         0x2549 => linesChar(metrics, canvas, .{ .right = .light, .left = .heavy, .up = .heavy, .down = .heavy }),
-        // '╊'
+        // 'â•Š'
         0x254a => linesChar(metrics, canvas, .{ .left = .light, .right = .heavy, .up = .heavy, .down = .heavy }),
-        // '╋'
+        // 'â•‹'
         0x254b => linesChar(metrics, canvas, .{ .up = .heavy, .down = .heavy, .left = .heavy, .right = .heavy }),
-        // '╌'
+        // 'â•Œ'
         0x254c => dashHorizontal(
             metrics,
             canvas,
@@ -268,7 +268,7 @@ pub fn draw2500_257F(
             Thickness.light.height(metrics.box_thickness),
             Thickness.light.height(metrics.box_thickness),
         ),
-        // '╍'
+        // 'â•'
         0x254d => dashHorizontal(
             metrics,
             canvas,
@@ -276,7 +276,7 @@ pub fn draw2500_257F(
             Thickness.heavy.height(metrics.box_thickness),
             Thickness.heavy.height(metrics.box_thickness),
         ),
-        // '╎'
+        // 'â•Ž'
         0x254e => dashVertical(
             metrics,
             canvas,
@@ -284,7 +284,7 @@ pub fn draw2500_257F(
             Thickness.light.height(metrics.box_thickness),
             Thickness.heavy.height(metrics.box_thickness),
         ),
-        // '╏'
+        // 'â•'
         0x254f => dashVertical(
             metrics,
             canvas,
@@ -293,103 +293,103 @@ pub fn draw2500_257F(
             Thickness.heavy.height(metrics.box_thickness),
         ),
 
-        // '═'
+        // 'â•'
         0x2550 => linesChar(metrics, canvas, .{ .left = .double, .right = .double }),
-        // '║'
+        // 'â•‘'
         0x2551 => linesChar(metrics, canvas, .{ .up = .double, .down = .double }),
-        // '╒'
+        // 'â•’'
         0x2552 => linesChar(metrics, canvas, .{ .down = .light, .right = .double }),
-        // '╓'
+        // 'â•“'
         0x2553 => linesChar(metrics, canvas, .{ .down = .double, .right = .light }),
-        // '╔'
+        // 'â•”'
         0x2554 => linesChar(metrics, canvas, .{ .down = .double, .right = .double }),
-        // '╕'
+        // 'â••'
         0x2555 => linesChar(metrics, canvas, .{ .down = .light, .left = .double }),
-        // '╖'
+        // 'â•–'
         0x2556 => linesChar(metrics, canvas, .{ .down = .double, .left = .light }),
-        // '╗'
+        // 'â•—'
         0x2557 => linesChar(metrics, canvas, .{ .down = .double, .left = .double }),
-        // '╘'
+        // 'â•˜'
         0x2558 => linesChar(metrics, canvas, .{ .up = .light, .right = .double }),
-        // '╙'
+        // 'â•™'
         0x2559 => linesChar(metrics, canvas, .{ .up = .double, .right = .light }),
-        // '╚'
+        // 'â•š'
         0x255a => linesChar(metrics, canvas, .{ .up = .double, .right = .double }),
-        // '╛'
+        // 'â•›'
         0x255b => linesChar(metrics, canvas, .{ .up = .light, .left = .double }),
-        // '╜'
+        // 'â•œ'
         0x255c => linesChar(metrics, canvas, .{ .up = .double, .left = .light }),
-        // '╝'
+        // 'â•'
         0x255d => linesChar(metrics, canvas, .{ .up = .double, .left = .double }),
-        // '╞'
+        // 'â•ž'
         0x255e => linesChar(metrics, canvas, .{ .up = .light, .down = .light, .right = .double }),
-        // '╟'
+        // 'â•Ÿ'
         0x255f => linesChar(metrics, canvas, .{ .up = .double, .down = .double, .right = .light }),
 
-        // '╠'
+        // 'â• '
         0x2560 => linesChar(metrics, canvas, .{ .up = .double, .down = .double, .right = .double }),
-        // '╡'
+        // 'â•¡'
         0x2561 => linesChar(metrics, canvas, .{ .up = .light, .down = .light, .left = .double }),
-        // '╢'
+        // 'â•¢'
         0x2562 => linesChar(metrics, canvas, .{ .up = .double, .down = .double, .left = .light }),
-        // '╣'
+        // 'â•£'
         0x2563 => linesChar(metrics, canvas, .{ .up = .double, .down = .double, .left = .double }),
-        // '╤'
+        // 'â•¤'
         0x2564 => linesChar(metrics, canvas, .{ .down = .light, .left = .double, .right = .double }),
-        // '╥'
+        // 'â•¥'
         0x2565 => linesChar(metrics, canvas, .{ .down = .double, .left = .light, .right = .light }),
-        // '╦'
+        // 'â•¦'
         0x2566 => linesChar(metrics, canvas, .{ .down = .double, .left = .double, .right = .double }),
-        // '╧'
+        // 'â•§'
         0x2567 => linesChar(metrics, canvas, .{ .up = .light, .left = .double, .right = .double }),
-        // '╨'
+        // 'â•¨'
         0x2568 => linesChar(metrics, canvas, .{ .up = .double, .left = .light, .right = .light }),
-        // '╩'
+        // 'â•©'
         0x2569 => linesChar(metrics, canvas, .{ .up = .double, .left = .double, .right = .double }),
-        // '╪'
+        // 'â•ª'
         0x256a => linesChar(metrics, canvas, .{ .up = .light, .down = .light, .left = .double, .right = .double }),
-        // '╫'
+        // 'â•«'
         0x256b => linesChar(metrics, canvas, .{ .up = .double, .down = .double, .left = .light, .right = .light }),
-        // '╬'
+        // 'â•¬'
         0x256c => linesChar(metrics, canvas, .{ .up = .double, .down = .double, .left = .double, .right = .double }),
-        // '╭'
+        // 'â•­'
         0x256d => try arc(metrics, canvas, .br, .light),
-        // '╮'
+        // 'â•®'
         0x256e => try arc(metrics, canvas, .bl, .light),
-        // '╯'
+        // 'â•¯'
         0x256f => try arc(metrics, canvas, .tl, .light),
 
-        // '╰'
+        // 'â•°'
         0x2570 => try arc(metrics, canvas, .tr, .light),
-        // '╱'
+        // 'â•±'
         0x2571 => lightDiagonalUpperRightToLowerLeft(metrics, canvas),
-        // '╲'
+        // 'â•²'
         0x2572 => lightDiagonalUpperLeftToLowerRight(metrics, canvas),
-        // '╳'
+        // 'â•³'
         0x2573 => lightDiagonalCross(metrics, canvas),
-        // '╴'
+        // 'â•´'
         0x2574 => linesChar(metrics, canvas, .{ .left = .light }),
-        // '╵'
+        // 'â•µ'
         0x2575 => linesChar(metrics, canvas, .{ .up = .light }),
-        // '╶'
+        // 'â•¶'
         0x2576 => linesChar(metrics, canvas, .{ .right = .light }),
-        // '╷'
+        // 'â•·'
         0x2577 => linesChar(metrics, canvas, .{ .down = .light }),
-        // '╸'
+        // 'â•¸'
         0x2578 => linesChar(metrics, canvas, .{ .left = .heavy }),
-        // '╹'
+        // 'â•¹'
         0x2579 => linesChar(metrics, canvas, .{ .up = .heavy }),
-        // '╺'
+        // 'â•º'
         0x257a => linesChar(metrics, canvas, .{ .right = .heavy }),
-        // '╻'
+        // 'â•»'
         0x257b => linesChar(metrics, canvas, .{ .down = .heavy }),
-        // '╼'
+        // 'â•¼'
         0x257c => linesChar(metrics, canvas, .{ .left = .light, .right = .heavy }),
-        // '╽'
+        // 'â•½'
         0x257d => linesChar(metrics, canvas, .{ .up = .light, .down = .heavy }),
-        // '╾'
+        // 'â•¾'
         0x257e => linesChar(metrics, canvas, .{ .left = .heavy, .right = .light }),
-        // '╿'
+        // 'â•¿'
         0x257f => linesChar(metrics, canvas, .{ .up = .heavy, .down = .light }),
 
         else => unreachable,

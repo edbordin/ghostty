@@ -40,8 +40,8 @@
   <Import Project="..\GhosttyDev.props" />
 
   <PropertyGroup>
-    <OutDir>$(SolutionDir)bin\$(Configuration)\x64\</OutDir>
-    <IntDir>$(SolutionDir)obj\$(ProjectName)\$(Configuration)\x64\</IntDir>
+    <OutDir>$(GhosttyWindowsDir)bin\$(Configuration)\$(Platform)\</OutDir>
+    <IntDir>$(GhosttyWindowsDir)obj\$(ProjectName)\$(Configuration)\$(Platform)\</IntDir>
     <TargetName>GhosttyHostV2</TargetName>
     <GenerateManifest>true</GenerateManifest>
     <EmbedManifest>true</EmbedManifest>
@@ -60,15 +60,21 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(GhosttyImportLibPath);runtimeobject.lib;windowsapp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(GhosttyImportLibPath);runtimeobject.lib;windowsapp.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>copy /Y "$(GhosttyDllPath)" "$(OutDir)ghostty.dll" &gt;NUL
+if exist "$(GhosttyGlslangDllPath)" copy /Y "$(GhosttyGlslangDllPath)" "$(OutDir)glslang.dll" &gt;NUL
+if exist "$(GhosttySpirvCrossDllPath)" copy /Y "$(GhosttySpirvCrossDllPath)" "$(OutDir)spirv_cross.dll" &gt;NUL
 copy /Y "$(ProjectDir)RunGhosttyHostV2.bat" "$(OutDir)RunGhosttyHostV2.bat" &gt;NUL</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
 
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <!-- Match ghostty.dll runtime flavor to avoid cross-CRT heap/locale hazards. -->
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+    </ClCompile>
     <Link>
       <!-- libghostty Debug surface init can be stack-heavy; reserve more stack for bring-up -->
       <StackReserveSize>16777216</StackReserveSize>

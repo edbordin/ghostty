@@ -1,5 +1,4 @@
 const std = @import("std");
-const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;
 const ArenaAllocator = std.heap.ArenaAllocator;
 const glslang = @import("glslang");
@@ -7,6 +6,23 @@ const spvcross = @import("spirv_cross");
 const configpkg = @import("../config.zig");
 
 const log = std.log.scoped(.shadertoy);
+var glslang_once = std.once(initGlslangOnce);
+var glslang_init_error: ?anyerror = null;
+
+fn initGlslangOnce() void {
+    glslang.init() catch |err| {
+        glslang_init_error = err;
+    };
+}
+
+pub fn initGlslang() !void {
+    glslang_once.call();
+    if (glslang_init_error) |err| return err;
+}
+
+fn ensureGlslangInitialized() !void {
+    try initGlslang();
+}
 
 /// The uniform struct used for shadertoy shaders.
 pub const Uniforms = extern struct {
@@ -40,7 +56,17 @@ pub const Uniforms = extern struct {
 };
 
 /// The target to load shaders for.
-pub const Target = enum { glsl, msl };
+pub const Target = enum {
+    glsl,
+    msl,
+    hlsl,
+    /// Returns the file contents without shadertoy/glslang translation.
+    /// This is useful for renderers that handle custom shader translation
+    /// themselves.
+    raw,
+};
+
+pub const hlsl_entry_point: [*:0]const u8 = "main";
 
 /// Load a set of shaders from files and convert them to the target
 /// format. The shader order is preserved.
@@ -80,9 +106,8 @@ pub fn loadFromFile(
     path: []const u8,
     target: Target,
 ) ![:0]const u8 {
-    var arena = ArenaAllocator.init(alloc_gpa);
-    defer arena.deinit();
-    const alloc = arena.allocator();
+    log.info("loadFromFile begin path={s} target={s}", .{ path, @tagName(target) });
+    const alloc = alloc_gpa;
 
     // Read it all into memory -- we don't expect shaders to be large.
     const src = src: {
@@ -96,46 +121,78 @@ pub fn loadFromFile(
             4 * 1024 * 1024, // 4MB
         );
     };
+    defer alloc.free(src);
+    log.info("loadFromFile read path={s} bytes={}", .{ path, src.len });
+    if (target == .raw) {
+        return try alloc_gpa.dupeZ(u8, src);
+    }
+    if (target == .hlsl and std.ascii.endsWithIgnoreCase(path, ".hlsl")) {
+        return try alloc_gpa.dupeZ(u8, src);
+    }
 
     // Convert to full GLSL
-    const glsl: [:0]const u8 = glsl: {
-        var stream: std.Io.Writer.Allocating = .init(alloc);
-        try glslFromShader(&stream.writer, src);
-        try stream.writer.writeByte(0);
-        break :glsl stream.written()[0 .. stream.written().len - 1 :0];
-    };
+    const glsl: [:0]const u8 = try buildShaderToyGlsl(alloc, src);
+    defer alloc.free(glsl);
+    log.info("loadFromFile glsl_ready path={s} bytes={}", .{ path, glsl.len });
 
     // Convert to SPIR-V
+    log.info("loadFromFile spirv_begin path={s}", .{path});
+    var stream: std.Io.Writer.Allocating = .init(alloc);
+    defer stream.deinit();
+    var errlog: SpirvLog = .{ .alloc = alloc };
+    defer errlog.deinit();
+    spirvFromGlsl(&stream.writer, &errlog, glsl) catch |err| {
+        if (errlog.info.len > 0 or errlog.debug.len > 0) {
+            log.warn("spirv error path={s} info={s} debug={s}", .{
+                path,
+                errlog.info,
+                errlog.debug,
+            });
+        }
+
+        return err;
+    };
+
+    // SpirV pointer must be aligned to 4 bytes since we expect
+    // a slice of words.
+    var spirv_list: std.ArrayListAligned(u8, .of(u32)) = .empty;
+    defer spirv_list.deinit(alloc);
+    try spirv_list.appendSlice(alloc, stream.written());
+    const spirv: []const u8 = spirv_list.items;
+    log.info("loadFromFile spirv_ready path={s} bytes={}", .{ path, spirv.len });
+
+    // Convert to MSL
+    const out = switch (target) {
+        // Important: using the alloc_gpa here on purpose because this
+        // is the final result that will be returned to the caller.
+        .glsl => try glslFromSpv(alloc_gpa, spirv),
+        .msl => try mslFromSpv(alloc_gpa, spirv),
+        .hlsl => try hlslFromSpv(alloc_gpa, spirv),
+        .raw => unreachable,
+    };
+    log.info("loadFromFile done path={s} target={s} bytes={}", .{ path, @tagName(target), out.len });
+    return out;
+}
+
+/// Convert a ShaderToy shader source into HLSL source.
+pub fn hlslFromShader(alloc_gpa: Allocator, src: []const u8) ![:0]const u8 {
+    var arena = ArenaAllocator.init(alloc_gpa);
+    defer arena.deinit();
+    const alloc = arena.allocator();
+
+    const glsl: [:0]const u8 = try buildShaderToyGlsl(alloc, src);
+
     const spirv: []const u8 = spirv: {
         var stream: std.Io.Writer.Allocating = .init(alloc);
-        var errlog: SpirvLog = .{ .alloc = alloc };
-        defer errlog.deinit();
-        spirvFromGlsl(&stream.writer, &errlog, glsl) catch |err| {
-            if (errlog.info.len > 0 or errlog.debug.len > 0) {
-                log.warn("spirv error path={s} info={s} debug={s}", .{
-                    path,
-                    errlog.info,
-                    errlog.debug,
-                });
-            }
+        try spirvFromGlsl(&stream.writer, null, glsl);
 
-            return err;
-        };
-
-        // SpirV pointer must be aligned to 4 bytes since we expect
-        // a slice of words.
         var list: std.ArrayListAligned(u8, .of(u32)) = .empty;
         try list.appendSlice(alloc, stream.written());
         break :spirv list.items;
     };
 
-    // Convert to MSL
-    return switch (target) {
-        // Important: using the alloc_gpa here on purpose because this
-        // is the final result that will be returned to the caller.
-        .glsl => try glslFromSpv(alloc_gpa, spirv),
-        .msl => try mslFromSpv(alloc_gpa, spirv),
-    };
+    const hlsl = try hlslFromSpv(alloc_gpa, spirv);
+    return hlsl;
 }
 
 /// Convert a ShaderToy shader into valid GLSL.
@@ -151,15 +208,35 @@ pub fn glslFromShader(writer: *std.Io.Writer, src: []const u8) !void {
     try writer.writeAll(src);
 }
 
+fn buildShaderToyGlsl(alloc: Allocator, src: []const u8) ![:0]u8 {
+    const prefix = @embedFile("shaders/shadertoy_prefix.glsl");
+    const separator = "\n\n";
+    const total = prefix.len + separator.len + src.len;
+    var out = try alloc.allocSentinel(u8, total, 0);
+    var off: usize = 0;
+    @memcpy(out[off .. off + prefix.len], prefix);
+    off += prefix.len;
+    @memcpy(out[off .. off + separator.len], separator);
+    off += separator.len;
+    @memcpy(out[off .. off + src.len], src);
+    return out;
+}
+
 /// Convert a GLSL shader into SPIR-V assembly.
 pub fn spirvFromGlsl(
     writer: *std.Io.Writer,
     errlog: ?*SpirvLog,
     src: [:0]const u8,
 ) !void {
-    // So we can run unit tests without fear.
-    if (builtin.is_test) try glslang.testing.ensureInit();
+    try ensureGlslangInitialized();
+    return spirvFromGlslImpl(writer, errlog, src);
+}
 
+fn spirvFromGlslImpl(
+    writer: *std.Io.Writer,
+    errlog: ?*SpirvLog,
+    src: [:0]const u8,
+) !void {
     const c = glslang.c;
     const input: c.glslang_input_t = .{
         .language = c.GLSLANG_SOURCE_GLSL,
@@ -175,16 +252,24 @@ pub fn spirvFromGlsl(
         .forward_compatible = 0,
         .messages = c.GLSLANG_MSG_DEFAULT_BIT,
         .resource = c.glslang_default_resource(),
+        .callbacks = .{
+            .include_system = null,
+            .include_local = null,
+            .free_include_result = null,
+        },
+        .callbacks_ctx = null,
     };
-
     const shader = try glslang.Shader.create(&input);
     defer shader.delete();
 
     shader.preprocess(&input) catch |err| {
+        log.warn("spirvWorker preprocess failed err={}", .{err});
         if (errlog) |ptr| ptr.fromShader(shader) catch {};
         return err;
     };
+
     shader.parse(&input) catch |err| {
+        log.warn("spirvWorker parse failed err={}", .{err});
         if (errlog) |ptr| ptr.fromShader(shader) catch {};
         return err;
     };
@@ -196,6 +281,7 @@ pub fn spirvFromGlsl(
         c.GLSLANG_MSG_SPV_RULES_BIT |
             c.GLSLANG_MSG_VULKAN_RULES_BIT,
     ) catch |err| {
+        log.warn("spirvWorker link failed err={}", .{err});
         if (errlog) |ptr| ptr.fromProgram(program) catch {};
         return err;
     };
@@ -240,7 +326,7 @@ pub const SpirvLog = struct {
 /// Convert SPIR-V binary to MSL.
 pub fn mslFromSpv(alloc: Allocator, spv: []const u8) ![:0]const u8 {
     const c = spvcross.c;
-    return try spvCross(alloc, spvcross.c.SPVC_BACKEND_MSL, spv, (struct {
+    return try spvCross(alloc, spvcross.c.SPVC_BACKEND_MSL, spv, null, (struct {
         fn setOptions(options: c.spvc_compiler_options) error{SpvcFailed}!void {
             // We enable decoration binding, because we need this
             // to properly locate the uniform block to index 1.
@@ -260,7 +346,7 @@ pub fn glslFromSpv(alloc: Allocator, spv: []const u8) ![:0]const u8 {
     const GLSL_VERSION = 430;
 
     const c = spvcross.c;
-    return try spvCross(alloc, c.SPVC_BACKEND_GLSL, spv, (struct {
+    return try spvCross(alloc, c.SPVC_BACKEND_GLSL, spv, null, (struct {
         fn setOptions(options: c.spvc_compiler_options) error{SpvcFailed}!void {
             if (c.spvc_compiler_options_set_uint(
                 options,
@@ -273,10 +359,28 @@ pub fn glslFromSpv(alloc: Allocator, spv: []const u8) ![:0]const u8 {
     }).setOptions);
 }
 
+/// Convert SPIR-V binary to HLSL for D3D11 custom postprocess shaders.
+pub fn hlslFromSpv(alloc: Allocator, spv: []const u8) ![:0]const u8 {
+    const HLSL_SHADER_MODEL = 50;
+    const c = spvcross.c;
+    return try spvCross(alloc, c.SPVC_BACKEND_HLSL, spv, null, (struct {
+        fn setOptions(options: c.spvc_compiler_options) error{SpvcFailed}!void {
+            if (c.spvc_compiler_options_set_uint(
+                options,
+                c.SPVC_COMPILER_OPTION_HLSL_SHADER_MODEL,
+                HLSL_SHADER_MODEL,
+            ) != c.SPVC_SUCCESS) {
+                return error.SpvcFailed;
+            }
+        }
+    }).setOptions);
+}
+
 fn spvCross(
     alloc: Allocator,
     backend: spvcross.c.spvc_backend,
     spv: []const u8,
+    comptime setupFn_: ?*const fn (compiler: spvcross.c.spvc_compiler) error{SpvcFailed}!void,
     comptime optionsFn_: ?*const fn (c: spvcross.c.spvc_compiler_options) error{SpvcFailed}!void,
 ) ![:0]const u8 {
     // Spir-V is always a multiple of 4 because it is written as a series of words
@@ -318,6 +422,11 @@ fn spvCross(
         &compiler,
     ) != c.SPVC_SUCCESS) {
         return error.SpvcFailed;
+    }
+
+    // Setup compiler-specific state prior to options/compilation.
+    if (setupFn_) |setupFn| {
+        try setupFn(compiler);
     }
 
     // Setup our options if we have any
@@ -398,6 +507,29 @@ test "shadertoy to msl" {
 
     const msl = try mslFromSpv(alloc, spvlist.items);
     defer alloc.free(msl);
+}
+
+test "shadertoy to hlsl" {
+    const testing = std.testing;
+    const alloc = testing.allocator;
+
+    const src = try testGlslZ(alloc, test_crt);
+    defer alloc.free(src);
+
+    var buf: std.Io.Writer.Allocating = .init(alloc);
+    defer buf.deinit();
+    try spirvFromGlsl(&buf.writer, null, src);
+
+    // TODO: Replace this with an aligned version of Writer.Allocating
+    var spvlist: std.ArrayListAligned(u8, .of(u32)) = .empty;
+    defer spvlist.deinit(alloc);
+    try spvlist.appendSlice(alloc, buf.written());
+
+    const hlsl = try hlslFromSpv(alloc, spvlist.items);
+    defer alloc.free(hlsl);
+
+    try testing.expect(std.mem.indexOf(u8, hlsl, "main(") != null);
+    try testing.expect(std.mem.indexOf(u8, hlsl, "iChannel0") != null);
 }
 
 test "shadertoy to glsl" {

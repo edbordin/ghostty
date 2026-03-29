@@ -3,10 +3,10 @@
   <PropertyGroup>
     <GhosttyWindowsDir>$(MSBuildThisFileDirectory)</GhosttyWindowsDir>
     <GhosttyRoot>$([System.IO.Path]::GetFullPath('$(GhosttyWindowsDir)..\'))</GhosttyRoot>
-    <GhosttyRawImportLibPath>$(GhosttyRoot)zig-out\lib\ghostty.lib</GhosttyRawImportLibPath>
-    <GhosttyImportDefPath>$(GhosttyRoot)zig-out\lib\ghostty-msvc.def</GhosttyImportDefPath>
-    <GhosttyImportLibPath>$(GhosttyRoot)zig-out\lib\ghostty-msvc.lib</GhosttyImportLibPath>
+    <GhosttyImportLibPath>$(GhosttyRoot)zig-out\lib\ghostty.lib</GhosttyImportLibPath>
     <GhosttyDllPath>$(GhosttyRoot)zig-out\lib\ghostty.dll</GhosttyDllPath>
+    <GhosttyGlslangDllPath>$(GhosttyRoot)zig-out\lib\glslang.dll</GhosttyGlslangDllPath>
+    <GhosttySpirvCrossDllPath>$(GhosttyRoot)zig-out\lib\spirv_cross.dll</GhosttySpirvCrossDllPath>
     <GhosttyHeaderDir>$(GhosttyRoot)zig-out\include</GhosttyHeaderDir>
     <ZigExe Condition="'$(ZigExe)'=='' and Exists('$(LOCALAPPDATA)\Microsoft\WinGet\Links\zig.exe')">$(LOCALAPPDATA)\Microsoft\WinGet\Links\zig.exe</ZigExe>
     <ZigExe Condition="'$(ZigExe)'==''">zig</ZigExe>

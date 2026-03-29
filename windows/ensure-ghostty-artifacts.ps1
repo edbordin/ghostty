@@ -18,7 +18,8 @@ $ErrorActionPreference = "Stop"
 $GhosttyRoot = (Resolve-Path $GhosttyRoot).Path
 $dllPath = Join-Path $GhosttyRoot "zig-out\lib\ghostty.dll"
 $rawImportLibPath = Join-Path $GhosttyRoot "zig-out\lib\ghostty.lib"
-$msvcImportLibPath = Join-Path $GhosttyRoot "zig-out\lib\ghostty-msvc.lib"
+$glslangDllPath = Join-Path $GhosttyRoot "zig-out\lib\glslang.dll"
+$spirvCrossDllPath = Join-Path $GhosttyRoot "zig-out\lib\spirv_cross.dll"
 $optimizeStampPath = Join-Path $GhosttyRoot "zig-out\lib\ghostty-optimize.txt"
 $headerPath = Join-Path $GhosttyRoot "zig-out\include\ghostty.h"
 
@@ -58,7 +59,7 @@ $inputs = @(
     (Join-Path $GhosttyRoot "include")
 )
 
-$outputs = @($dllPath, $rawImportLibPath, $msvcImportLibPath, $headerPath)
+$outputs = @($dllPath, $rawImportLibPath, $glslangDllPath, $spirvCrossDllPath, $headerPath)
 $outputsReady = $true
 foreach ($output in $outputs) {
     if (-not (Test-Path $output)) {
@@ -101,7 +102,7 @@ else {
     Write-Host "Ghostty artifacts are up to date; skipping zig build."
 }
 
-& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $GhosttyRoot "windows\sync-ghostty-artifacts.ps1") -GhosttyRoot "$GhosttyRoot."
+& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $GhosttyRoot "windows\sync-ghostty-artifacts.ps1") -GhosttyRoot "$GhosttyRoot"
 if ($LASTEXITCODE -ne 0) {
     throw "sync-ghostty-artifacts.ps1 failed with exit code $LASTEXITCODE"
 }

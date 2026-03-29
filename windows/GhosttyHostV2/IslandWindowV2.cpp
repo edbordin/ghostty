@@ -213,13 +213,8 @@ void IslandWindowV2::ResizeIsland() noexcept
         height,
         SWP_NOACTIVATE | SWP_NOZORDER | SWP_SHOWWINDOW);
 
-    const double scale = static_cast<double>(GetDpiForWindow(_window)) /
-                         static_cast<double>(USER_DEFAULT_SCREEN_DPI);
-    _terminalSurface.SetSurfaceMetrics(
-        static_cast<uint32_t>(width),
-        static_cast<uint32_t>(height),
-        scale,
-        scale);
+    // Surface metrics are applied from SwapChainPanel callbacks so size/scale
+    // updates are sourced from a single path.
 }
 
 void IslandWindowV2::ShutdownIsland() noexcept

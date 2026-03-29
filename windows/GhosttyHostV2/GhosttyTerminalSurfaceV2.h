@@ -79,11 +79,17 @@ private:
     ghostty_surface_t _ghosttySurface{ nullptr };
     bool _runtimeInitialized{ false };
     bool _runtimeInitDeferred{ false };
+    bool _runtimeInitInProgress{ false };
     winrt::Windows::UI::Xaml::Controls::SwapChainPanel::LayoutUpdated_revoker _swapChainLayoutUpdatedRevoker{};
     winrt::event_token _swapChainSizeChangedToken{};
     winrt::event_token _swapChainScaleChangedToken{};
     bool _swapChainSizeChangedRegistered{ false };
     bool _swapChainScaleChangedRegistered{ false };
     std::atomic_bool _runtimeTickScheduled{ false };
+    bool _hasSurfaceMetrics{ false };
+    uint32_t _surfaceWidthPx{ 0 };
+    uint32_t _surfaceHeightPx{ 0 };
+    double _surfaceScaleX{ 1.0 };
+    double _surfaceScaleY{ 1.0 };
     std::wstring _lastError{};
 };

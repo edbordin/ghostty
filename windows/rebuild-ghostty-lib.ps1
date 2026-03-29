@@ -32,8 +32,8 @@ finally {
     Pop-Location
 }
 
-Write-Host "==> Syncing MSVC import artifacts"
-& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $windowsDir "sync-ghostty-artifacts.ps1") -GhosttyRoot "$ghosttyRoot."
+Write-Host "==> Syncing host artifacts"
+& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $windowsDir "sync-ghostty-artifacts.ps1") -GhosttyRoot "$ghosttyRoot"
 if ($LASTEXITCODE -ne 0) {
     throw "sync-ghostty-artifacts.ps1 failed with exit code $LASTEXITCODE"
 }

@@ -7,54 +7,6 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-function Resolve-ToolPath {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$Name
-    )
-
-    $command = Get-Command $Name -ErrorAction SilentlyContinue
-    if ($command) {
-        return $command.Source
-    }
-
-    if ($env:VCToolsInstallDir) {
-        $hostX64 = Join-Path $env:VCToolsInstallDir "bin\Hostx64\x64\$Name"
-        if (Test-Path $hostX64) {
-            return $hostX64
-        }
-
-        $hostX86 = Join-Path $env:VCToolsInstallDir "bin\Hostx86\x64\$Name"
-        if (Test-Path $hostX86) {
-            return $hostX86
-        }
-    }
-
-    $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
-    if (Test-Path $vswhere) {
-        $installPath = (& $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath | Select-Object -First 1)
-        if ($installPath) {
-            $msvcRoot = Join-Path $installPath "VC\Tools\MSVC"
-            if (Test-Path $msvcRoot) {
-                $toolchain = Get-ChildItem -Path $msvcRoot -Directory | Sort-Object Name -Descending | Select-Object -First 1
-                if ($toolchain) {
-                    $hostX64 = Join-Path $toolchain.FullName "bin\Hostx64\x64\$Name"
-                    if (Test-Path $hostX64) {
-                        return $hostX64
-                    }
-
-                    $hostX86 = Join-Path $toolchain.FullName "bin\Hostx86\x64\$Name"
-                    if (Test-Path $hostX86) {
-                        return $hostX86
-                    }
-                }
-            }
-        }
-    }
-
-    throw "Could not locate required tool: $Name"
-}
-
 $GhosttyRoot = (Resolve-Path $GhosttyRoot).Path
 
 $cacheDir = Join-Path $GhosttyRoot ".zig-cache"
@@ -82,44 +34,61 @@ $sourceDll = Join-Path $candidate.DirectoryName "ghostty.dll"
 
 $destLib = Join-Path $outDir "ghostty.lib"
 $destDll = Join-Path $outDir "ghostty.dll"
-$destDef = Join-Path $outDir "ghostty-msvc.def"
-$destMsvcLib = Join-Path $outDir "ghostty-msvc.lib"
+$destGlslangDll = Join-Path $outDir "glslang.dll"
+$destSpirvCrossDll = Join-Path $outDir "spirv_cross.dll"
+
+$glslangCandidate = Get-ChildItem -Path $cacheDir -Recurse -File -Filter "glslang.dll" |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -First 1
+$spirvCrossCandidate = Get-ChildItem -Path $cacheDir -Recurse -File -Filter "spirv_cross.dll" |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -First 1
 
 Copy-Item -Path $sourceLib -Destination $destLib -Force
 Copy-Item -Path $sourceDll -Destination $destDll -Force
-
-$dumpbinExe = Resolve-ToolPath -Name "dumpbin.exe"
-$libExe = Resolve-ToolPath -Name "lib.exe"
-
-$exports = & $dumpbinExe /exports $destDll |
-    ForEach-Object {
-        if ($_ -match '^\s+\d+\s+[0-9A-F]+\s+[0-9A-F]+\s+(.+)$') {
-            $Matches[1].Trim()
-        }
-    } |
-    Where-Object {
-        $_ -and
-        $_ -ne "_DllMainCRTStartup" -and
-        $_ -ne "DllMainCRTStartup"
-    } |
-    Sort-Object -Unique
-
-if (-not $exports -or $exports.Count -eq 0) {
-    throw "No exports were discovered in $destDll"
+if ($glslangCandidate) {
+    Copy-Item -Path $glslangCandidate.FullName -Destination $destGlslangDll -Force
+} else {
+    Write-Warning "No glslang.dll found in $cacheDir; dynamic glslang runtime copy skipped."
+}
+if ($spirvCrossCandidate) {
+    Copy-Item -Path $spirvCrossCandidate.FullName -Destination $destSpirvCrossDll -Force
+} else {
+    Write-Warning "No spirv_cross.dll found in $cacheDir; dynamic spirv-cross runtime copy skipped."
 }
 
-$defLines = @("LIBRARY ghostty.dll", "EXPORTS")
-$defLines += $exports | ForEach-Object { "    $_" }
-Set-Content -Path $destDef -Value $defLines -Encoding Ascii
+# Keep host output trees in sync when they already exist so running the host
+# does not accidentally pick up a stale ghostty.dll.
+$runtimeOutputDirs = @(
+    (Join-Path $GhosttyRoot "windows\bin\Debug\x64"),
+    (Join-Path $GhosttyRoot "windows\bin\Release\x64"),
+    (Join-Path $GhosttyRoot "windows\GhosttyHost\bin\Debug\x64"),
+    (Join-Path $GhosttyRoot "windows\GhosttyHost\bin\Release\x64"),
+    (Join-Path $GhosttyRoot "windows\GhosttyHostV2\bin\Debug\x64"),
+    (Join-Path $GhosttyRoot "windows\GhosttyHostV2\bin\Release\x64")
+)
 
-& $libExe /nologo /machine:x64 "/def:$destDef" "/out:$destMsvcLib" | Out-Null
+foreach ($dir in $runtimeOutputDirs) {
+    if (-not (Test-Path $dir)) {
+        continue
+    }
 
-if (-not (Test-Path $destMsvcLib)) {
-    throw "Failed to generate MSVC-safe import library: $destMsvcLib"
+    Copy-Item -Path $destDll -Destination (Join-Path $dir "ghostty.dll") -Force
+    Copy-Item -Path $destLib -Destination (Join-Path $dir "ghostty.lib") -Force
+    if (Test-Path $destGlslangDll) {
+        Copy-Item -Path $destGlslangDll -Destination (Join-Path $dir "glslang.dll") -Force
+    }
+    if (Test-Path $destSpirvCrossDll) {
+        Copy-Item -Path $destSpirvCrossDll -Destination (Join-Path $dir "spirv_cross.dll") -Force
+    }
 }
 
 Write-Host "Synced Ghostty artifacts:"
-Write-Host "  $destLib (raw)"
+Write-Host "  $destLib"
 Write-Host "  $destDll"
-Write-Host "  $destDef"
-Write-Host "  $destMsvcLib"
+if (Test-Path $destGlslangDll) {
+    Write-Host "  $destGlslangDll"
+}
+if (Test-Path $destSpirvCrossDll) {
+    Write-Host "  $destSpirvCrossDll"
+}

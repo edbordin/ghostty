@@ -18,11 +18,11 @@ if not exist "%RUN_DIR%GhosttyHostV2.exe" (
 )
 
 pushd "%RUN_DIR%"
-set "GHOSTTY_LOG=stderr"
 set "GHOSTTY_ENABLE_SURFACE=1"
+if not defined GHOSTTY_LOG set "GHOSTTY_LOG=false"
 if not defined GHOSTTY_LOAD_DEFAULT_CONFIG set "GHOSTTY_LOAD_DEFAULT_CONFIG=1"
-if not defined GHOSTTY_TRACE_HOST set "GHOSTTY_TRACE_HOST=1"
-if not defined GHOSTTY_TRACE_EMBEDDED_EVENTS set "GHOSTTY_TRACE_EMBEDDED_EVENTS=1"
+if not defined GHOSTTY_TRACE_HOST set "GHOSTTY_TRACE_HOST=0"
+if not defined GHOSTTY_TRACE_EMBEDDED_EVENTS set "GHOSTTY_TRACE_EMBEDDED_EVENTS=0"
 set "LOG_FILE=%RUN_DIR%GhosttyHostV2.log"
 
 echo Launching GhosttyHostV2 with GHOSTTY_LOG=%GHOSTTY_LOG%

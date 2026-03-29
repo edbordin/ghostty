@@ -5,6 +5,7 @@
 pub const Termio = @This();
 
 const std = @import("std");
+const builtin = @import("builtin");
 const assert = @import("../quirks.zig").inlineAssert;
 const Allocator = std.mem.Allocator;
 const ArenaAllocator = std.heap.ArenaAllocator;
@@ -403,11 +404,11 @@ pub fn queueMessage(
     msg: termio.Message,
     mutex: MutexState,
 ) void {
-    self.mailbox.send(msg, switch (mutex) {
+    const should_notify = self.mailbox.send(msg, switch (mutex) {
         .locked => self.renderer_state.mutex,
         .unlocked => null,
     });
-    self.mailbox.notify();
+    if (should_notify) self.mailbox.notify();
 }
 
 /// Queue a write directly to the pty.
@@ -484,8 +485,11 @@ pub fn resize(
     self.size = size;
     const grid_size = size.grid();
 
-    // Update the size of our pty.
-    try self.backend.resize(grid_size, size.terminal());
+    const resize_backend_first = builtin.os.tag != .windows;
+    if (resize_backend_first) {
+        // Keep backend-first ordering on non-Windows platforms.
+        try self.backend.resize(grid_size, size.terminal());
+    }
 
     // Enter the critical area that we want to keep small
     {
@@ -511,6 +515,12 @@ pub fn resize(
         if (self.terminal.modes.get(.in_band_size_reports)) {
             try self.sizeReportLocked(td, .mode_2048);
         }
+    }
+
+    if (!resize_backend_first) {
+        // On Windows/ConPTY, update local terminal state first so the
+        // read thread doesn't parse resize-induced output with stale geometry.
+        try self.backend.resize(grid_size, size.terminal());
     }
 
     // Mail the renderer so that it can update the GPU and re-render

@@ -4,6 +4,7 @@
 const Terminal = @This();
 
 const std = @import("std");
+const builtin = @import("builtin");
 const build_options = @import("terminal_options");
 const lib = @import("../lib/main.zig");
 const assert = @import("../quirks.zig").inlineAssert;
@@ -2827,12 +2828,14 @@ pub fn resize(
         self.tabstops = try .init(alloc, cols, 8);
     }
 
-    // Resize primary screen, which supports reflow
+    // Resize primary screen. On Windows/ConPTY we disable local reflow to
+    // avoid diverging from ConPTY's own buffer-resize behavior.
+    const allow_reflow = self.modes.get(.wraparound) and builtin.os.tag != .windows;
     const primary = self.screens.get(.primary).?;
     try primary.resize(.{
         .cols = cols,
         .rows = rows,
-        .reflow = self.modes.get(.wraparound),
+        .reflow = allow_reflow,
         .prompt_redraw = self.flags.shell_redraws_prompt,
     });
 

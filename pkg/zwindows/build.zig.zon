@@ -1,0 +1,11 @@
+.{
+    .name = .zwindows,
+    .version = "0.3.0-dev",
+    .minimum_zig_version = "0.15.0",
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "LICENSE",
+    },
+}

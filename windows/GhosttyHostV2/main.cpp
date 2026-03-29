@@ -3,11 +3,16 @@
 
 #include <windows.h>
 
+#include <clocale>
 #include <iterator>
+#include <locale>
 #include <winrt/base.h>
 
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
 {
+    std::setlocale(LC_ALL, "C");
+    std::locale::global(std::locale::classic());
+
     winrt::init_apartment(winrt::apartment_type::single_threaded);
     EnableMouseInPointer(TRUE);
 
