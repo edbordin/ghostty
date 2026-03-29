@@ -139,8 +139,14 @@ fn detectShell(alloc: Allocator, command: config.Command) !?Shell {
 
     const arg0 = arg_iter.next() orelse return null;
     const exe = std.fs.path.basename(arg0);
+    const exe_name = exe_name: {
+        if (exe.len > 4 and std.ascii.eqlIgnoreCase(exe[exe.len - 4 ..], ".exe")) {
+            break :exe_name exe[0 .. exe.len - 4];
+        }
+        break :exe_name exe;
+    };
 
-    if (std.mem.eql(u8, "bash", exe)) {
+    if (std.ascii.eqlIgnoreCase("bash", exe_name)) {
         // Apple distributes their own patched version of Bash 3.2
         // on macOS that disables the ENV-based POSIX startup path.
         // This means we're unable to perform our automatic shell
@@ -157,10 +163,10 @@ fn detectShell(alloc: Allocator, command: config.Command) !?Shell {
         return .bash;
     }
 
-    if (std.mem.eql(u8, "elvish", exe)) return .elvish;
-    if (std.mem.eql(u8, "fish", exe)) return .fish;
-    if (std.mem.eql(u8, "nu", exe)) return .nushell;
-    if (std.mem.eql(u8, "zsh", exe)) return .zsh;
+    if (std.ascii.eqlIgnoreCase("elvish", exe_name)) return .elvish;
+    if (std.ascii.eqlIgnoreCase("fish", exe_name)) return .fish;
+    if (std.ascii.eqlIgnoreCase("nu", exe_name)) return .nushell;
+    if (std.ascii.eqlIgnoreCase("zsh", exe_name)) return .zsh;
 
     return null;
 }
@@ -171,10 +177,16 @@ test detectShell {
 
     try testing.expect(try detectShell(alloc, .{ .shell = "sh" }) == null);
     try testing.expectEqual(.bash, try detectShell(alloc, .{ .shell = "bash" }));
+    try testing.expectEqual(.bash, try detectShell(alloc, .{ .shell = "bash.exe" }));
+    try testing.expectEqual(.bash, try detectShell(alloc, .{ .shell = "BASH.EXE" }));
     try testing.expectEqual(.elvish, try detectShell(alloc, .{ .shell = "elvish" }));
+    try testing.expectEqual(.elvish, try detectShell(alloc, .{ .shell = "elvish.exe" }));
     try testing.expectEqual(.fish, try detectShell(alloc, .{ .shell = "fish" }));
+    try testing.expectEqual(.fish, try detectShell(alloc, .{ .shell = "fish.exe" }));
     try testing.expectEqual(.nushell, try detectShell(alloc, .{ .shell = "nu" }));
+    try testing.expectEqual(.nushell, try detectShell(alloc, .{ .shell = "nu.exe" }));
     try testing.expectEqual(.zsh, try detectShell(alloc, .{ .shell = "zsh" }));
+    try testing.expectEqual(.zsh, try detectShell(alloc, .{ .shell = "zsh.exe" }));
 
     if (comptime builtin.target.os.tag.isDarwin()) {
         try testing.expect(try detectShell(alloc, .{ .shell = "/bin/bash" }) == null);

@@ -33,6 +33,7 @@ pub fn initStatic(
         .use_llvm = true,
     });
     lib.linkLibC();
+    lib.linkLibCpp();
 
     // These must be bundled since we're compiling into a static lib.
     // Otherwise, you get undefined symbol errors.
@@ -86,6 +87,13 @@ pub fn initShared(
         // Fails on self-hosted x86_64
         .use_llvm = true,
     });
+    lib.linkLibC();
+    lib.linkLibCpp();
+    if (deps.config.target.result.os.tag == .windows) {
+        // Keep C/C++ compilation units in sync with ghostty.h import/export
+        // annotations when producing the DLL on Windows.
+        lib.root_module.addCMacro("GHOSTTY_BUILD_DLL", "1");
+    }
     _ = try deps.add(lib);
 
     // Get our debug symbols

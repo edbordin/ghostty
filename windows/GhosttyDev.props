@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <GhosttyWindowsDir>$(MSBuildThisFileDirectory)</GhosttyWindowsDir>
+    <GhosttyRoot>$([System.IO.Path]::GetFullPath('$(GhosttyWindowsDir)..\'))</GhosttyRoot>
+    <GhosttyImportLibPath>$(GhosttyRoot)zig-out\lib\ghostty.lib</GhosttyImportLibPath>
+    <GhosttyDllPath>$(GhosttyRoot)zig-out\lib\ghostty.dll</GhosttyDllPath>
+    <GhosttyGlslangDllPath>$(GhosttyRoot)zig-out\lib\glslang.dll</GhosttyGlslangDllPath>
+    <GhosttySpirvCrossDllPath>$(GhosttyRoot)zig-out\lib\spirv_cross.dll</GhosttySpirvCrossDllPath>
+    <GhosttyHeaderDir>$(GhosttyRoot)zig-out\include</GhosttyHeaderDir>
+    <ZigExe Condition="'$(ZigExe)'=='' and Exists('$(LOCALAPPDATA)\Microsoft\WinGet\Links\zig.exe')">$(LOCALAPPDATA)\Microsoft\WinGet\Links\zig.exe</ZigExe>
+    <ZigExe Condition="'$(ZigExe)'==''">zig</ZigExe>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <ZigOptimize>Debug</ZigOptimize>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <ZigOptimize>ReleaseFast</ZigOptimize>
+  </PropertyGroup>
+</Project>

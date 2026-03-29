@@ -398,6 +398,10 @@ pub fn add(
     if (step.rootModuleTarget().os.tag == .linux) {
         step.addIncludePath(b.path("src/apprt/gtk"));
     }
+    if (step.rootModuleTarget().os.tag == .windows and self.config.renderer == .d3d11) {
+        step.linkSystemLibrary2("d3d11", dynamic_link_opts);
+        step.linkSystemLibrary2("dxgi", dynamic_link_opts);
+    }
 
     // libcpp is required for various dependencies
     step.linkLibCpp();
@@ -417,6 +421,9 @@ pub fn add(
     // Other dependencies, mostly pure Zig
     if (b.lazyDependency("opengl", .{})) |dep| {
         step.root_module.addImport("opengl", dep.module("opengl"));
+    }
+    if (b.lazyDependency("zwindows", .{})) |dep| {
+        step.root_module.addImport("zwindows", dep.module("zwindows"));
     }
     if (b.lazyDependency("vaxis", .{})) |dep| {
         step.root_module.addImport("vaxis", dep.module("vaxis"));

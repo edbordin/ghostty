@@ -23,7 +23,13 @@ pub fn main() !void {
     try genConfig(alloc, writer);
     try genActions(alloc, writer);
     try genKeybindActions(alloc, writer);
-    try stdout.end();
+    stdout.end() catch |err| switch (err) {
+        // On Windows when stdout is a captured pipe in `zig build`, Zig's
+        // buffered writer can report FileTooBig while finalizing. The emitted
+        // data is already produced, so we tolerate this specific close error.
+        error.FileTooBig => {},
+        else => return err,
+    };
 }
 
 fn genConfig(alloc: std.mem.Allocator, writer: *std.Io.Writer) !void {

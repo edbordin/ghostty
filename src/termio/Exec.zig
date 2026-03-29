@@ -237,6 +237,13 @@ pub fn focusGained(
     assert(td.backend == .exec);
     const execdata = &td.backend.exec;
 
+    // Termios polling is currently unsupported on Windows. Focus events should
+    // not attempt to start the timer path.
+    if (comptime builtin.os.tag == .windows) {
+        execdata.termios_timer_running = false;
+        return;
+    }
+
     if (!focused) {
         // Flag the timer to end on the next iteration. This is
         // a lot cheaper than doing full timer cancellation.
@@ -752,7 +759,7 @@ const Subprocess = struct {
         const shell_command: configpkg.Command = shell: {
             const default_shell_command: configpkg.Command =
                 cfg.command orelse .{ .shell = switch (builtin.os.tag) {
-                    .windows => "cmd.exe",
+                    .windows => "bash.exe",
                     else => "sh",
                 } };
 

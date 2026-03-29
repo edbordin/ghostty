@@ -341,6 +341,7 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
             const BgImageBuffer = Buffer(shaderpkg.BgImage);
 
             pub fn init(api: GraphicsAPI, custom_shaders: bool) !FrameState {
+                _ = custom_shaders;
                 // Uniform buffer contains exactly 1 uniform struct. The
                 // uniform data will be undefined so this must be set before
                 // a frame is drawn.
@@ -382,13 +383,6 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                 });
                 errdefer color.deinit();
 
-                var custom_shader_state =
-                    if (custom_shaders)
-                        try CustomShaderState.init(api)
-                    else
-                        null;
-                errdefer if (custom_shader_state) |*state| state.deinit();
-
                 // Initialize the target. Just as with the other resources,
                 // start it off as small as we can since it'll be resized.
                 const target = try api.initTarget(1, 1);
@@ -401,7 +395,7 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                     .grayscale = grayscale,
                     .color = color,
                     .target = target,
-                    .custom_shader_state = custom_shader_state,
+                    .custom_shader_state = null,
                 };
             }
 
@@ -848,13 +842,21 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                 break :err &.{};
             };
 
-            const has_custom_shaders = custom_shaders.len > 0;
+            const requested_custom_shaders = custom_shaders.len;
 
             var shaders = try self.api.initShaders(
                 self.alloc,
                 custom_shaders,
             );
             errdefer shaders.deinit(self.alloc);
+
+            const has_custom_shaders = shaders.post_pipelines.len > 0;
+            if (requested_custom_shaders > 0 and !has_custom_shaders) {
+                log.warn(
+                    "custom shaders requested={} but no postprocess pipelines initialized; disabling custom shader pass",
+                    .{requested_custom_shaders},
+                );
+            }
 
             self.shaders = shaders;
             self.has_custom_shaders = has_custom_shaders;
@@ -1912,6 +1914,12 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
 
             if (custom_shaders_changed) {
                 self.reinitialize_shaders = true;
+            }
+
+            // Keep runtime present behavior aligned with config on APIs
+            // that expose a vsync toggle.
+            if (@hasField(GraphicsAPI, "vsync")) {
+                self.api.vsync = config.vsync;
             }
         }
 

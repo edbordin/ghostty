@@ -42,6 +42,14 @@ pub const exp = struct {
     pub const STATUS_PENDING = 0x00000103;
     pub const STILL_ACTIVE = STATUS_PENDING;
 
+    // CreatePseudoConsole flags
+    pub const PSEUDOCONSOLE_INHERIT_CURSOR: windows.DWORD = 0x01;
+    pub const PSEUDOCONSOLE_GLYPH_WIDTH__MASK: windows.DWORD = 0x18;
+    pub const PSEUDOCONSOLE_GLYPH_WIDTH_GRAPHEMES: windows.DWORD = 0x08;
+    pub const PSEUDOCONSOLE_GLYPH_WIDTH_WCSWIDTH: windows.DWORD = 0x10;
+    pub const PSEUDOCONSOLE_GLYPH_WIDTH_CONSOLE: windows.DWORD = 0x18;
+    pub const PSEUDOCONSOLE_AMBIGUOUS_IS_WIDE: windows.DWORD = 0x20;
+
     pub const STARTUPINFOEX = extern struct {
         StartupInfo: windows.STARTUPINFOW,
         lpAttributeList: LPPROC_THREAD_ATTRIBUTE_LIST,

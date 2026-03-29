@@ -42,13 +42,17 @@ fn buildGlslang(
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
 ) !*std.Build.Step.Compile {
+    const linkage: std.builtin.LinkMode = if (target.result.os.tag == .windows)
+        .dynamic
+    else
+        .static;
     const lib = b.addLibrary(.{
         .name = "glslang",
         .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
         }),
-        .linkage = .static,
+        .linkage = linkage,
     });
     lib.linkLibC();
     lib.linkLibCpp();
@@ -69,7 +73,16 @@ fn buildGlslang(
     if (target.result.os.tag == .freebsd or target.result.abi == .musl) {
         try flags.append(b.allocator, "-fPIC");
     }
-
+    if (target.result.os.tag == .windows) {
+        try flags.appendSlice(b.allocator, &.{
+            // Mirror upstream Windows shared-library declarations.
+            "-DGLSLANG_IS_SHARED_LIBRARY=1",
+            "-DGLSLANG_EXPORTING=1",
+            "-DGLSLANG_OSINCLUDE_WIN32",
+        });
+    } else if (target.result.os.tag == .linux or target.result.os.tag.isDarwin()) {
+        try flags.append(b.allocator, "-DGLSLANG_OSINCLUDE_UNIX");
+    }
     if (upstream_) |upstream| {
         lib.addCSourceFiles(.{
             .root = upstream.path(""),

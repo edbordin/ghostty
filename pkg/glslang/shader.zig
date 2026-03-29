@@ -48,6 +48,12 @@ test {
         .forward_compatible = 0,
         .messages = c.GLSLANG_MSG_DEFAULT_BIT,
         .resource = c.glslang_default_resource(),
+        .callbacks = .{
+            .include_system = null,
+            .include_local = null,
+            .free_include_result = null,
+        },
+        .callbacks_ctx = null,
     };
 
     try testlib.ensureInit();

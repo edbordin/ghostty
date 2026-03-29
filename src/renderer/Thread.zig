@@ -575,7 +575,10 @@ fn drawCallback(
     _: *xev.Completion,
     r: xev.Timer.RunError!void,
 ) xev.CallbackAction {
-    _ = r catch unreachable;
+    _ = r catch |err| {
+        log.warn("error in draw callback err={}", .{err});
+        return .disarm;
+    };
     const t: *Thread = self_ orelse {
         // This shouldn't happen so we log it.
         log.warn("render callback fired without data set", .{});
@@ -599,7 +602,10 @@ fn renderCallback(
     _: *xev.Completion,
     r: xev.Timer.RunError!void,
 ) xev.CallbackAction {
-    _ = r catch unreachable;
+    _ = r catch |err| {
+        log.warn("error in render callback err={}", .{err});
+        return .disarm;
+    };
     const t: *Thread = self_ orelse {
         // This shouldn't happen so we log it.
         log.warn("render callback fired without data set", .{});
@@ -631,7 +637,7 @@ fn cursorTimerCallback(
 
         else => {
             log.warn("error in cursor timer callback err={}", .{err});
-            unreachable;
+            return .disarm;
         },
     };
 
@@ -674,7 +680,7 @@ fn cursorCancelCallback(
         error.NotFound => {}, // completed before it could cancel
         else => {
             log.warn("error in cursor cancel callback err={}", .{err});
-            unreachable;
+            return .disarm;
         },
     };
 
@@ -693,7 +699,10 @@ fn stopCallback(
     _: *xev.Completion,
     r: xev.Async.WaitError!void,
 ) xev.CallbackAction {
-    _ = r catch unreachable;
+    _ = r catch |err| {
+        log.warn("error in stop callback err={}", .{err});
+        return .disarm;
+    };
     self_.?.loop.stop();
     return .disarm;
 }

@@ -11,7 +11,7 @@ const log = std.log.scoped(.io_writer);
 /// Typically used by a multi-threaded application. The capacity is
 /// hardcoded to a value that empirically has made sense for Ghostty usage
 /// but I'm open to changing it with good arguments.
-const Queue = BlockingQueue(termio.Message, 64);
+const Queue = BlockingQueue(termio.Message, 1024);
 
 /// The location to where write-related messages are sent.
 pub const Mailbox = union(enum) {
@@ -58,16 +58,20 @@ pub const Mailbox = union(enum) {
     /// send would block, we'll unlock this mutex, resend the message, and
     /// lock it again. This handles an edge case where queues are full.
     /// This may not apply to all writer types.
+    ///
+    /// Returns true if callers should notify the consumer thread (i.e. the
+    /// queue transitioned from empty to non-empty).
     pub fn send(
         self: *Mailbox,
         msg: termio.Message,
         mutex: ?*std.Thread.Mutex,
-    ) void {
-        switch (self.*) {
+    ) bool {
+        return switch (self.*) {
             .spsc => |*mb| send: {
                 // Try to write to the queue with an instant timeout. This is the
                 // fast path because we can queue without a lock.
-                if (mb.queue.push(msg, .{ .instant = {} }) > 0) break :send;
+                const instant_len = mb.queue.push(msg, .{ .instant = {} });
+                if (instant_len > 0) break :send instant_len == 1;
 
                 // If we enter this conditional, the queue is full. We wake up
                 // the writer thread so that it can process messages to clear up
@@ -75,7 +79,7 @@ pub const Mailbox = union(enum) {
                 // lock so we need to unlock.
                 mb.wakeup.notify() catch |err| {
                     log.warn("failed to wake up writer, data will be dropped err={}", .{err});
-                    return;
+                    return false;
                 };
 
                 // Unlock the renderer state so the writer thread can acquire it.
@@ -89,9 +93,10 @@ pub const Mailbox = union(enum) {
                 // here.
                 if (mutex) |m| m.unlock();
                 defer if (mutex) |m| m.lock();
-                _ = mb.queue.push(msg, .{ .forever = {} });
+                const waited_len = mb.queue.push(msg, .{ .forever = {} });
+                return waited_len == 1;
             },
-        }
+        };
     }
 
     /// Notify that there are new messages. This may be a noop depending

@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{3E3148F2-6C4E-4EC0-A5C4-4E6A829D5D90}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>GhosttyHostV2</RootNamespace>
+    <ProjectName>GhosttyHostV2</ProjectName>
+    <WindowsTargetPlatformVersion>10.0.22621.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="..\GhosttyDev.props" />
+
+  <PropertyGroup>
+    <OutDir>$(GhosttyWindowsDir)bin\$(Configuration)\$(Platform)\</OutDir>
+    <IntDir>$(GhosttyWindowsDir)obj\$(ProjectName)\$(Configuration)\$(Platform)\</IntDir>
+    <TargetName>GhosttyHostV2</TargetName>
+    <GenerateManifest>true</GenerateManifest>
+    <EmbedManifest>true</EmbedManifest>
+  </PropertyGroup>
+
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <WarningLevel>Level4</WarningLevel>
+      <ConformanceMode>true</ConformanceMode>
+      <ExceptionHandling>Async</ExceptionHandling>
+      <PreprocessorDefinitions>_UNICODE;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(GhosttyHeaderDir);$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>$(GhosttyImportLibPath);runtimeobject.lib;windowsapp.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PostBuildEvent>
+      <Command>copy /Y "$(GhosttyDllPath)" "$(OutDir)ghostty.dll" &gt;NUL
+if exist "$(GhosttyGlslangDllPath)" copy /Y "$(GhosttyGlslangDllPath)" "$(OutDir)glslang.dll" &gt;NUL
+if exist "$(GhosttySpirvCrossDllPath)" copy /Y "$(GhosttySpirvCrossDllPath)" "$(OutDir)spirv_cross.dll" &gt;NUL
+copy /Y "$(ProjectDir)RunGhosttyHostV2.bat" "$(OutDir)RunGhosttyHostV2.bat" &gt;NUL</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <!-- Match ghostty.dll runtime flavor to avoid cross-CRT heap/locale hazards. -->
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <!-- libghostty Debug surface init can be stack-heavy; reserve more stack for bring-up -->
+      <StackReserveSize>16777216</StackReserveSize>
+    </Link>
+  </ItemDefinitionGroup>
+
+  <ItemGroup>
+    <ClInclude Include="GhosttyApiShim.h" />
+    <ClInclude Include="GhosttyTerminalSurfaceV2.h" />
+    <ClInclude Include="IslandWindowV2.h" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ClCompile Include="GhosttyTerminalSurfaceV2.cpp" />
+    <ClCompile Include="IslandWindowV2.cpp" />
+    <ClCompile Include="main.cpp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Manifest Include="GhosttyHostV2.manifest" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

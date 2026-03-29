@@ -431,7 +431,7 @@ const WindowsPty = struct {
             .{ .X = @intCast(size.ws_col), .Y = @intCast(size.ws_row) },
             pty.in_pipe_pty,
             pty.out_pipe_pty,
-            0,
+            windows.exp.PSEUDOCONSOLE_GLYPH_WIDTH_GRAPHEMES,
             &pty.pseudo_console,
         );
         if (result != windows.S_OK) return error.Unexpected;

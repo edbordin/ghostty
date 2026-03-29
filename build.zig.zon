@@ -61,6 +61,10 @@
             .hash = "gobject-0.3.0-Skun7ANLnwDvEfIpVmohcppXgOvg_I6YOJFmPIsKfXk-",
             .lazy = true,
         },
+        .zwindows = .{
+            .path = "./pkg/zwindows",
+            .lazy = true,
+        },
 
         // C libs
         .dcimgui = .{ .path = "./pkg/dcimgui", .lazy = true },
