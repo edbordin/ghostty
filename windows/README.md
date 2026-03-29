@@ -207,8 +207,8 @@ Both hosts embed custom app manifests (`GhosttyHost.manifest` and `GhosttyHostV2
 | `api.zig` | Typed bindings/constants used by wrappers | Metal enums/structs and entry points (`MTLCreateSystemDefaultDevice`, etc.) |
 - GLSL shaders in `src/renderer/shaders/glsl/` are not just effects in Ghostty overall. For the OpenGL backend, they are core rendering shaders (bg, cell bg, text, image, bg image).
 - Metal backend core rendering uses `src/renderer/shaders/shaders.metal`; custom postprocess shaders are loaded from user GLSL and translated through SPIR-V tooling for Metal.
-- Current D3D11 bring-up does not yet translate those core GLSL shaders directly. Core D3D11 paths are being implemented with explicit HLSL modules in `src/renderer/shaders/hlsl/`.
 - Current D3D11 custom shader loading translates ShaderToy GLSL through SPIR-V into HLSL and compiles each translated shader as a postprocess pixel stage.
+- Unlike other build configurations, the windows build currently links dynamically to libglslang and libspirv_cross to work around issues with initialization of thread-local storage. It may be possible to improve this later, but for now this stops crashes due to heap corruption when translating GLSL shaders.
 
 ## Runtime toggles (GhosttyHostV2)
 
